@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O Porão 3D - A Fuga Final</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&display=swap');
+        
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
+        
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: flex-end; align-items: center; padding-bottom: 50px; z-index: 10;
+        }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+            background-color: rgba(255,255,255,0.6); border-radius: 50%; transform: translate(-50%, -50%);
+        }
+        #msg-box {
+            background: rgba(0,0,0,0.85); color: #ff4444; padding: 15px 30px;
+            border: 1px solid #600; max-width: 80%; text-align: center;
+            opacity: 0; transition: opacity 0.3s; border-radius: 4px; font-weight: bold; font-size: 1.2rem;
+        }
+        #instructions {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); color: white; display: flex;
+            flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; cursor: pointer; z-index: 100;
+        }
+        .controls-hint {
+            position: absolute; bottom: 20px; left: 20px; color: rgba(255,255,255,0.7);
+            font-size: 0.9rem; pointer-events: none; background: rgba(0,0,0,0.5);
+            padding: 10px; border-radius: 5px;
+        }
+        #inventory {
+            position: absolute; top: 20px; right: 20px; color: white;
+            font-size: 1rem; background: rgba(0,0,0,0.7); padding: 10px; border: 1px solid #444;
+        }
+        
+        #yasmin-warning {
+            position: absolute; top: 15%; width: 100%; text-align: center; color: #ff0000;
+            font-family: 'Creepster', cursive; font-size: 6rem;
+            text-shadow: 0 0 20px #ff0000, 0 0 40px #8b0000;
+            animation: flash 0.15s infinite alternate; z-index: 50; pointer-events: none;
+            display: none; letter-spacing: 5px;
+        }
+        @keyframes flash {
+            from { opacity: 0.1; transform: scale(1); }
+            to { opacity: 1; transform: scale(1.05); }
+        }
+        
+        .blood-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            box-shadow: inset 0 0 150px rgba(255, 0, 0, 0.8);
+            background: rgba(255, 0, 0, 0.0); pointer-events: none; z-index: 5; display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="instructions">
+        <h1 class="text-6xl mb-4 font-bold text-red-700" style="font-family: 'Creepster', cursive;">FUJA DA YASMIN</h1>
+        <p class="mb-4 text-xl">A casa é apenas o começo.</p>
+        <p class="text-white animate-pulse mt-4">CLIQUE PARA ACORDAR</p>
+        <div class="mt-8 text-gray-400 text-sm">
+            MOUSE: Olhar | CLIQUE: Interagir / Forçar cordas<br>
+            ESPAÇO: Levantar | WASD: Andar/Dirigir | L: Lanterna | V: Câmera
+        </div>
+    </div>
+
+    <div id="inventory">
+        <h3 class="text-yellow-500 font-bold mb-2 border-b border-gray-600 pb-1">INVENTÁRIO</h3>
+        <div id="inv-list" class="text-sm text-gray-400">Vazio</div>
+    </div>
+
+    <div id="yasmin-warning">PARAAAA FERNANDO</div>
+    <div id="blood" class="blood-overlay"></div>
+
+    <div id="ui-layer">
+        <div id="crosshair"></div>
+        <div id="msg-box"></div>
+    </div>
+
+    <div class="controls-hint" id="hints">Controles: Mouse: Olhar | WASD: Andar | L: Lanterna | V: Câmera</div>
+
+    <script>
+        let scene, camera, renderer, raycaster;
+        let isLocked = false;
+        
+        let moveState = { 
+            tied: true, standing: false,
+            keys: { silver: false, red: false, blue: false },
+            doors: { basement: false, kitchen: false, exit: false },
+            hasFlashlight: false, flashlightOn: false,
+            hasGas: false, hasBattery: false, inCar: false,
+            ropeHealth: 100, dead: false, inJumpscare: false, thirdPerson: false,
+            jumpscarePhase: 0, phase: 'house' // 'house', 'escape_cutscene', 'forest', 'driving', 'win'
+        };
+        
+        let velocity = new THREE.Vector3(); let direction = new THREE.Vector3();
+        let keys = { w: false, a: false, s: false, d: false };
+        
+        let interactables = []; let doorsMeshes = {}; let keysMeshes = {};
+        let playerGroup = new THREE.Group(); let cameraPitch = new THREE.Group();
+        let flashlightLight; let voidLight; let bodyParts = {}; 
+        
+        let yasmin, yasminJaw, yasminTongue, yasminArmL, yasminArmR;
+        let carGroup;
+
+        const msgBox = document.getElementById('msg-box');
+        const instructions = document.getElementById('instructions');
+        const warningTxt = document.getElementById('yasmin-warning');
+        const bloodOverlay = document.getElementById('blood');
+        const invList = document.getElementById('inv-list');
+
+        function updateInventory() {
+            let items = [];
+            if(moveState.keys.silver) items.push("<span class='text-gray-300'>🔑 Chave Prata</span>");
+            if(moveState.keys.red) items.push("<span class='text-red-500'>🔑 Chave Vermelha</span>");
+            if(moveState.keys.blue) items.push("<span class='text-blue-500'>🔑 Chave Azul</span>");
+            if(moveState.hasFlashlight) items.push("🔦 Lanterna");
+            if(moveState.hasGas) items.push("<span class='text-orange-500'>🛢️ Gasolina</span>");
+            if(moveState.hasBattery) items.push("<span class='text-yellow-400'>🔋 Bateria</span>");
+            invList.innerHTML = items.length ? items.join('<br>') : "Vazio";
+        }
+
+        function showMessage(text) {
+            msgBox.innerText = text; msgBox.style.opacity = 1;
+            if (window.msgTimeout) clearTimeout(window.msgTimeout);
+            window.msgTimeout = setTimeout(() => { msgBox.style.opacity = 0; }, 3500);
+        }
+
+        window.onload = init;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x010101);
+            scene.fog = new THREE.Fog(0x010101, 1, 14);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            cameraPitch.position.set(0, 1.25, 0.1); 
+            cameraPitch.add(camera);
+            
+            playerGroup.add(cameraPitch);
+            scene.add(playerGroup);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            raycaster = new THREE.Raycaster();
+
+            // Iluminação - Mais luz ambiente para a casa inteira
+            scene.add(new THREE.AmbientLight(0x353535, 1.0)); 
+            
+            function addCeilingLight(x, y, z, color, intensity, dist) {
+                const bulbGeo = new THREE.SphereGeometry(0.15, 16, 16);
+                const bulbMat = new THREE.MeshStandardMaterial({ emissive: color, emissiveIntensity: 1, color: 0x000000 });
+                const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+                bulb.position.set(x, y, z); scene.add(bulb);
+                const lamp = new THREE.PointLight(color, intensity, dist);
+                lamp.position.set(x, y - 0.2, z); lamp.castShadow = true; scene.add(lamp);
+            }
+
+            addCeilingLight(0, 3.9, 0, 0xffddaa, 1.5, 20);      
+            addCeilingLight(0, 3.9, -14, 0xaaaaff, 1.2, 20);    
+            addCeilingLight(0, 3.9, -27, 0xffeebb, 1.3, 25);    
+            addCeilingLight(4, 3.9, -36, 0xff2222, 1.5, 20);    
+            addCeilingLight(-10, 3.9, -26, 0xddffdd, 1.2, 25);  
+            addCeilingLight(0, 7.9, -46, 0xaaaaaa, 1.2, 25);    
+            addCeilingLight(0, 7.9, -58, 0xaaaaff, 1.4, 30);    
+
+            flashlightLight = new THREE.SpotLight(0xffffff, 10.0, 80, Math.PI / 6, 0.4, 1);
+            flashlightLight.position.set(0, 0, 0); flashlightLight.target.position.set(0, 0, -1);
+            flashlightLight.visible = false;
+            cameraPitch.add(flashlightLight); cameraPitch.add(flashlightLight.target);
+
+            // Void (Jumpscare)
+            const voidBox = new THREE.Mesh(new THREE.BoxGeometry(20, 20, 20), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }));
+            voidBox.position.set(0, 500, 0); scene.add(voidBox);
+            voidLight = new THREE.PointLight(0xffffff, 0, 20); voidLight.position.set(0, 501.5, -0.5); scene.add(voidLight);
+
+            createHouse();
+            createFullBody();
+            createItems();
+            createYasmin();
+
+            document.addEventListener('mousemove', handleRotation);
+            document.addEventListener('mousedown', handleInteraction);
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            
+            let lockCooldown = false;
+            instructions.addEventListener('click', () => {
+                if(!moveState.dead && !lockCooldown && moveState.phase !== 'win') {
+                    const promise = document.body.requestPointerLock();
+                    if (promise !== undefined) {
+                        promise.catch(() => {
+                            lockCooldown = true;
+                            const pulse = instructions.querySelector('.animate-pulse');
+                            if(pulse) pulse.innerText = "AGUARDE UM MOMENTO...";
+                            setTimeout(() => { lockCooldown = false; if(pulse) pulse.innerText = "CLIQUE PARA JOGAR"; }, 1500);
+                        });
+                    }
+                }
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                isLocked = document.pointerLockElement === document.body;
+                if (!moveState.dead && moveState.phase !== 'escape_cutscene' && moveState.phase !== 'win') {
+                    instructions.style.display = isLocked ? 'none' : 'flex';
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            animate();
+        }
+
+        function addWall(x, y, z, w, h, d, color=0x0a0a0a) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshPhongMaterial({color}));
+            mesh.position.set(x, y, z); mesh.receiveShadow = true; scene.add(mesh);
+            return mesh;
+        }
+
+        // Função auxiliar para criar placas (Canvas)
+        function createSign(text, x, y, z, rotY) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#3a200a'; ctx.fillRect(0,0,512,256);
+            ctx.strokeStyle = '#1a0d03'; ctx.lineWidth = 10; ctx.strokeRect(0,0,512,256);
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 50px Courier';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(text, 256, 128);
+            
+            const tex = new THREE.CanvasTexture(canvas);
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.5), new THREE.MeshBasicMaterial({map: tex}));
+            mesh.position.set(x, y, z); mesh.rotation.y = rotY;
+            
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.5), new THREE.MeshPhongMaterial({color: 0x221100}));
+            post.position.set(x, y - 1.25, z - 0.05);
+            scene.add(mesh); scene.add(post);
+        }
+
+        function createHouse() {
+            // Chão Base Casa
+            addWall(0, -0.25, -30, 60, 0.5, 70, 0x151515); 
+            addWall(0, 4.25, -15, 60, 0.5, 40, 0x050505); 
+            addWall(-16.25, 4.25, -40, 37.5, 0.5, 10, 0x050505); 
+            addWall(22.75, 4.25, -40, 34.5, 0.5, 10, 0x050505);  
+            addWall(0, 3.75, -55, 30, 0.5, 20, 0x221111);
+            addWall(0, 8.25, -55, 30, 0.5, 20, 0x050505);
+
+            // --- PORÃO ---
+            addWall(4.5, 2, -7.5, 7, 4, 0.5); addWall(-4.5, 2, -7.5, 7, 4, 0.5);
+            addWall(0, 3.75, -7.5, 2.0, 0.5, 0.5); 
+            addWall(7.5, 2, 0, 0.5, 4, 15.5); addWall(-7.5, 2, 0, 0.5, 4, 15.5); 
+            addWall(0, 2, 7.5, 15.5, 4, 0.5);
+
+            // --- CORREDOR ---
+            addWall(1.5, 2, -13.75, 0.5, 4, 12.5); addWall(-1.5, 2, -13.75, 0.5, 4, 12.5);
+
+            // --- SALA DE ESTAR ---
+            addWall(6, 2, -27.5, 0.5, 4, 15); 
+            addWall(-1.875, 2, -35, 8.75, 4, 0.5); 
+            addWall(5.875, 2, -35, 0.75, 4, 0.5);  
+            addWall(3.75, 2, -20, 4.5, 4, 0.5); addWall(-3.75, 2, -20, 4.5, 4, 0.5);
+            
+            // --- COZINHA GIGANTE ---
+            addWall(-5.5, 2, -31, 0.5, 4, 8);   
+            addWall(-5.5, 2, -22.5, 0.5, 4, 5); 
+            addWall(-5.5, 3.75, -26, 0.5, 0.5, 2.0); 
+            addWall(-20, 2, -27.5, 0.5, 4, 15); 
+            addWall(-12.75, 2, -20, 14.5, 4, 0.5); 
+            addWall(-12.75, 2, -35, 14.5, 4, 0.5); 
+
+            // --- ESCADAS ---
+            for(let i=0; i<10; i++) { addWall(4, (i*0.4)+0.2, -35.5 - i, 3, 0.4, 1, 0x1a1a1a); }
+            
+            // --- 2º ANDAR GIGANTE ---
+            addWall(-15, 6, -55, 0.5, 4, 20); 
+            addWall(15, 6, -55, 0.5, 4, 20);  
+            addWall(-6.25, 6, -45, 17.5, 4, 0.5); 
+            addWall(10.25, 6, -45, 9.5, 4, 0.5);  
+            
+            // Parede da Saída
+            addWall(-8.5, 6, -64.5, 13, 4, 0.5); 
+            addWall(7.5, 6, -64.5, 15, 4, 0.5);
+            addWall(-1.0, 7.75, -64.5, 2.0, 0.5, 0.5); 
+
+            // --- BOSQUE AMALDIÇOADO ---
+            // Chão do bosque (muito maior)
+            addWall(0, 3.75, -280, 200, 0.5, 450, 0x030a03); 
+            
+            const trunkGeo = new THREE.CylinderGeometry(0.6, 1.0, 15, 8);
+            const trunkMat = new THREE.MeshPhongMaterial({ color: 0x110a05 });
+            const leavesGeo = new THREE.SphereGeometry(4.5, 8, 8);
+            const leavesMat = new THREE.MeshPhongMaterial({ color: 0x051105 });
+            
+            // Floresta densa, mas deixando caminhos livres
+            for (let i = 0; i < 400; i++) {
+                let tx = (Math.random() - 0.5) * 180;
+                let tz = -70 - Math.random() * 400;
+                
+                // Limpar caminho principal (Z vai até -150)
+                if (Math.abs(tx) < 6 && tz > -160) continue; 
+                // Limpar caminho Acampamento (Direita)
+                if (Math.abs(tz + 150) < 6 && tx > 0 && tx < 60) continue;
+                // Limpar caminho Ferro Velho (Esquerda)
+                if (Math.abs(tz + 150) < 6 && tx < 0 && tx > -60) continue;
+                // Limpar caminho Carro (Frente até -250)
+                if (Math.abs(tx) < 8 && tz > -280 && tz <= -150) continue;
+                
+                const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                trunk.position.set(tx, 11.25, tz); scene.add(trunk);
+                const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+                leaves.position.set(tx, 18.75, tz); scene.add(leaves);
+            }
+
+            // PLACAS (Encruzilhada em Z = -140)
+            createSign("<- FERRO VELHO", -3, 6, -140, Math.PI / 8);
+            createSign("ACAMPAMENTO ->", 3, 6, -140, -Math.PI / 8);
+            createSign("^ CARRO DE FUGA ^", 0, 6, -143, 0);
+
+            // --- ACAMPAMENTO (X = 50, Z = -150) ---
+            const tentGeo = new THREE.ConeGeometry(4, 5, 4);
+            const tentMat = new THREE.MeshPhongMaterial({ color: 0x113311 });
+            const tent = new THREE.Mesh(tentGeo, tentMat);
+            tent.position.set(50, 6.5, -155); scene.add(tent);
+            
+            const fireLight = new THREE.PointLight(0xff5500, 1.5, 20);
+            fireLight.position.set(45, 4.5, -150); scene.add(fireLight);
+            const fireMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 0.5, 1), new THREE.MeshPhongMaterial({emissive: 0xff3300}));
+            fireMesh.position.set(45, 4.25, -150); scene.add(fireMesh);
+
+            // --- FERRO VELHO (X = -50, Z = -150) ---
+            const scrapGeo = new THREE.BoxGeometry(3, 3, 3);
+            const scrapMat = new THREE.MeshPhongMaterial({ color: 0x332211 });
+            for(let i=0; i<5; i++){
+                const scrap = new THREE.Mesh(scrapGeo, scrapMat);
+                scrap.position.set(-50 + (Math.random()-0.5)*10, 5.5, -150 + (Math.random()-0.5)*10);
+                scrap.rotation.set(Math.random(), Math.random(), Math.random());
+                scene.add(scrap);
+            }
+            const junkLight = new THREE.PointLight(0x55ff55, 0.8, 15); // Luz tóxica leve
+            junkLight.position.set(-50, 5, -150); scene.add(junkLight);
+
+            // --- CARRO DE FUGA (X = 0, Z = -250) ---
+            carGroup = new THREE.Group();
+            carGroup.position.set(0, 4.0, -250);
+            
+            const carBody = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.5, 6), new THREE.MeshPhongMaterial({ color: 0x882222 }));
+            carBody.position.y = 0.75; carGroup.add(carBody);
+            
+            const carTop = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.2, 3)), carTopMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+            carTop.position.set(0, 2.1, -0.5); carGroup.add(carTop);
+
+            const headlightL = new THREE.PointLight(0xffffee, 2, 40); headlightL.position.set(-1.2, 1.0, 3.1); carGroup.add(headlightL);
+            const headlightR = new THREE.PointLight(0xffffee, 2, 40); headlightR.position.set(1.2, 1.0, 3.1); carGroup.add(headlightR);
+            // Farois visiveis
+            const bulbL = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({color: 0xffffff})); bulbL.position.copy(headlightL.position); carGroup.add(bulbL);
+            const bulbR = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({color: 0xffffff})); bulbR.position.copy(headlightR.position); carGroup.add(bulbR);
+
+            // Colisor clicável do carro
+            const carCol = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 7), new THREE.MeshBasicMaterial({visible: false}));
+            carCol.position.y = 1.5; carCol.name = "car"; carGroup.add(carCol);
+            interactables.push(carCol);
+
+            scene.add(carGroup);
+        }
+
+        function createFullBody() {
+            const skinMat = new THREE.MeshPhongMaterial({ color: 0xc4a484 });
+            const clothesMat = new THREE.MeshPhongMaterial({ color: 0x223344 });
+
+            bodyParts.torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), clothesMat);
+            bodyParts.torso.position.set(0, 0.8, -0.1); bodyParts.torso.visible = false;
+            playerGroup.add(bodyParts.torso);
+
+            bodyParts.head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), skinMat);
+            bodyParts.head.position.set(0, 1.25, -0.1); bodyParts.head.visible = false;
+            playerGroup.add(bodyParts.head);
+
+            const legGeo = new THREE.CylinderGeometry(0.07, 0.06, 0.8); const footGeo = new THREE.BoxGeometry(0.12, 0.06, 0.25);
+            bodyParts.legL = new THREE.Mesh(legGeo, clothesMat); bodyParts.legL.position.set(-0.15, 0.4, -0.35); bodyParts.legL.rotation.x = -Math.PI / 2.5; playerGroup.add(bodyParts.legL);
+            bodyParts.footL = new THREE.Mesh(footGeo, new THREE.MeshPhongMaterial({color: 0x111111})); bodyParts.footL.position.set(-0.15, 0.03, -0.65); playerGroup.add(bodyParts.footL);
+            bodyParts.legR = new THREE.Mesh(legGeo, clothesMat); bodyParts.legR.position.set(0.15, 0.4, -0.35); bodyParts.legR.rotation.x = -Math.PI / 2.5; playerGroup.add(bodyParts.legR);
+            bodyParts.footR = new THREE.Mesh(footGeo, new THREE.MeshPhongMaterial({color: 0x111111})); bodyParts.footR.position.set(0.15, 0.03, -0.65); playerGroup.add(bodyParts.footR);
+
+            const armGeo = new THREE.CylinderGeometry(0.05, 0.04, 0.6); const handGeo = new THREE.SphereGeometry(0.06, 8, 8);
+            bodyParts.armL = new THREE.Mesh(armGeo, skinMat); bodyParts.armL.position.set(-0.35, 0.75, -0.15); bodyParts.armL.rotation.x = Math.PI / 6; playerGroup.add(bodyParts.armL);
+            bodyParts.handL = new THREE.Mesh(handGeo, skinMat); bodyParts.handL.position.set(-0.35, 0.5, -0.3); playerGroup.add(bodyParts.handL);
+            bodyParts.armR = new THREE.Mesh(armGeo, skinMat); bodyParts.armR.position.set(0.35, 0.75, -0.15); bodyParts.armR.rotation.x = Math.PI / 6; playerGroup.add(bodyParts.armR);
+            bodyParts.handR = new THREE.Mesh(handGeo, skinMat); bodyParts.handR.position.set(0.35, 0.5, -0.3); playerGroup.add(bodyParts.handR);
+        }
+
+        function createItems() {
+            // Cadeira e cordas
+            const mat = new THREE.MeshPhongMaterial({ color: 0x2b1d12 });
+            const seat = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.7), mat); seat.position.y = 0.5; scene.add(seat);
+            const back = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 0.1), mat); back.position.set(0, 1, 0.35); scene.add(back);
+
+            const rGeo = new THREE.TorusGeometry(0.06, 0.02, 10, 24); const rMat = new THREE.MeshPhongMaterial({ color: 0x554433 });
+            [{x: -0.35, y: 0.5, z: -0.3}, {x: 0.35, y: 0.5, z: -0.3}].forEach(pos => {
+                const r = new THREE.Mesh(rGeo, rMat); r.position.set(pos.x, pos.y, pos.z); r.rotation.x = Math.PI/2;
+                r.name = "rope"; scene.add(r); interactables.push(r);
+            });
+
+            // Chaves
+            const keyGeo = new THREE.BoxGeometry(0.15, 0.02, 0.3);
+            keysMeshes.silver = new THREE.Mesh(keyGeo, new THREE.MeshPhongMaterial({ color: 0xcccccc }));
+            keysMeshes.silver.position.set(-3, 0.02, -2); keysMeshes.silver.name = "key_silver";
+            keysMeshes.red = new THREE.Mesh(keyGeo, new THREE.MeshPhongMaterial({ color: 0xff3333 }));
+            keysMeshes.red.position.set(4, 0.02, -22); keysMeshes.red.name = "key_red";
+            keysMeshes.blue = new THREE.Mesh(keyGeo, new THREE.MeshPhongMaterial({ color: 0x3333ff }));
+            keysMeshes.blue.position.set(-18, 0.02, -32); keysMeshes.blue.name = "key_blue"; 
+            [keysMeshes.silver, keysMeshes.red, keysMeshes.blue].forEach(k => { scene.add(k); interactables.push(k); });
+
+            // Lanterna
+            const flash = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.25, 12), new THREE.MeshPhongMaterial({ color: 0x222222 }));
+            flash.rotation.x = Math.PI / 2; flash.position.set(-2.5, 0.04, -2.2);
+            flash.name = "flashlight"; scene.add(flash); interactables.push(flash);
+
+            // Gasolina (Acampamento)
+            const gas = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.3), new THREE.MeshPhongMaterial({ color: 0xff2200 }));
+            gas.position.set(48, 4.3, -152); gas.name = "gas_can"; scene.add(gas); interactables.push(gas);
+
+            // Bateria (Ferro Velho)
+            const batt = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.3), new THREE.MeshPhongMaterial({ color: 0x111111 }));
+            batt.position.set(-48, 4.2, -148); batt.name = "car_battery"; scene.add(batt); interactables.push(batt);
+
+            function createDoor(name, px, py, pz, colorKnob, isZdoor=true) {
+                const group = new THREE.Group(); group.position.set(px, py, pz);
+                const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(isZdoor?2.0:0.1, 3.5, isZdoor?0.1:2.0), new THREE.MeshPhongMaterial({ color: 0x1a0d00 }));
+                doorMesh.position.set(isZdoor?1.0:0, 1.75, isZdoor?0:1.0); doorMesh.name = name;
+                const knob = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), new THREE.MeshPhongMaterial({color: colorKnob}));
+                knob.position.set(isZdoor?1.8:0, 1.75, isZdoor?0.1:1.8); doorMesh.add(knob);
+                group.add(doorMesh); scene.add(group); interactables.push(doorMesh);
+                return group;
+            }
+            doorsMeshes.basement = createDoor("door_basement", -1.0, 0, -7.4, 0xaaaaaa);
+            doorsMeshes.kitchen = createDoor("door_kitchen", -5.5, 0, -27.0, 0xff0000, false);
+            doorsMeshes.exit = createDoor("door_exit", -2.0, 4, -64.5, 0x0000ff); 
+        }
+
+        function createYasmin() {
+            yasmin = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.5, 2.5, 16), new THREE.MeshPhongMaterial({ color: 0x220000 }));
+            body.position.y = 1.25; yasmin.add(body);
+            const head = new THREE.Group(); head.position.y = 2.6;
+            const skull = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), new THREE.MeshPhongMaterial({ color: 0x050505 }));
+            head.add(skull);
+
+            const textureLoader = new THREE.TextureLoader();
+            const faceTex = textureLoader.load('image_d68533.png');
+            const faceMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.55), new THREE.MeshBasicMaterial({ map: faceTex, transparent: true }));
+            faceMesh.position.set(0, 0.05, 0.24); head.add(faceMesh);
+
+            yasminJaw = new THREE.Group(); yasminJaw.position.set(0, -0.1, 0.1);
+            const lowerLip = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.2), new THREE.MeshPhongMaterial({color: 0x050505}));
+            lowerLip.position.set(0, -0.05, 0.1); yasminJaw.add(lowerLip);
+            yasminTongue = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.02, 0.6), new THREE.MeshPhongMaterial({color: 0xaa0000}));
+            yasminTongue.rotation.x = Math.PI/2; yasminTongue.position.set(0, 0, 0.3); yasminTongue.scale.z = 0.1;
+            yasminJaw.add(yasminTongue);
+
+            const toothMat = new THREE.MeshPhongMaterial({color: 0xaaaaaa});
+            for(let i=-2; i<=2; i++){
+                const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.08, 4), toothMat);
+                tooth.position.set(i*0.05, 0.05, 0.15); yasminJaw.add(tooth);
+            }
+            head.add(yasminJaw);
+            for(let i=-2; i<=2; i++){
+                const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.08, 4), toothMat);
+                tooth.rotation.x = Math.PI; tooth.position.set(i*0.05, -0.05, 0.23); head.add(tooth);
+            }
+            yasmin.add(head);
+
+            const armGeo = new THREE.CylinderGeometry(0.04, 0.03, 1.0, 8); const armMat = new THREE.MeshPhongMaterial({ color: 0x110000 });
+            yasminArmL = new THREE.Group(); yasminArmL.position.set(-0.3, 2.2, 0);
+            const armL = new THREE.Mesh(armGeo, armMat); armL.position.set(0, -0.5, 0); yasminArmL.add(armL); yasminArmL.rotation.x = -Math.PI / 4; 
+            yasminArmR = new THREE.Group(); yasminArmR.position.set(0.3, 2.2, 0); 
+            const armR = new THREE.Mesh(armGeo, armMat); armR.position.set(0, -0.5, 0); yasminArmR.add(armR); yasminArmR.rotation.x = -Math.PI / 4;
+
+            yasmin.add(yasminArmL); yasmin.add(yasminArmR);
+            yasmin.position.set(0, 4.0, -50); scene.add(yasmin);
+        }
+
+        function handleRotation(e) {
+            if (!isLocked || moveState.dead || moveState.phase === 'escape_cutscene' || moveState.phase === 'driving') return;
+            const sensitivity = 0.002;
+            playerGroup.rotation.y -= e.movementX * sensitivity;
+            cameraPitch.rotation.x = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, cameraPitch.rotation.x - e.movementY * sensitivity));
+        }
+
+        function onKeyDown(e) {
+            if(moveState.dead || moveState.phase === 'escape_cutscene' || moveState.phase === 'win') return;
+            const key = e.key.toLowerCase(); if(keys.hasOwnProperty(key)) keys[key] = true;
+            
+            if(e.code === "Space" && !moveState.standing && moveState.phase === 'house') {
+                if(moveState.tied) {
+                    showMessage("Você precisa se debater nas cordas e se soltar primeiro!"); return;
+                }
+                moveState.standing = true;
+                cameraPitch.position.set(0, 1.6, 0);
+                bodyParts.torso.position.set(0, 1.0, 0); bodyParts.head.position.set(0, 1.6, 0);
+                bodyParts.legL.rotation.x = 0; bodyParts.legL.position.set(-0.15, 0.4, 0); bodyParts.legR.rotation.x = 0; bodyParts.legR.position.set(0.15, 0.4, 0);
+                bodyParts.footL.position.set(-0.15, 0.03, -0.05); bodyParts.footR.position.set(0.15, 0.03, -0.05);
+                bodyParts.armL.rotation.x = 0; bodyParts.armL.position.set(-0.25, 1.2, 0); bodyParts.armR.rotation.x = 0; bodyParts.armR.position.set(0.25, 1.2, 0);
+                bodyParts.handL.position.set(-0.25, 0.9, 0); bodyParts.handR.position.set(0.25, 0.9, 0);
+                showMessage("Você se levantou. Use WASD para explorar.");
+            }
+            if(e.code === "KeyL" && moveState.hasFlashlight) {
+                moveState.flashlightOn = !moveState.flashlightOn;
+                flashlightLight.visible = moveState.flashlightOn;
+            }
+            if(e.code === "KeyV" && moveState.phase !== 'driving') {
+                moveState.thirdPerson = !moveState.thirdPerson;
+                if(moveState.thirdPerson) {
+                    camera.position.set(0, 0.5, 3);
+                    bodyParts.torso.visible = true; bodyParts.head.visible = true;
+                } else {
+                    camera.position.set(0, 0, 0); 
+                    bodyParts.torso.visible = false; bodyParts.head.visible = false;
+                }
+            }
+        }
+        function onKeyUp(e) { const key = e.key.toLowerCase(); if(keys.hasOwnProperty(key)) keys[key] = false; }
+
+        function startEscapeCutscene() {
+            moveState.phase = 'escape_cutscene';
+            scene.fog.far = 40; 
+
+            moveState.thirdPerson = true;
+            camera.position.set(0, 1.5, 4.5); 
+            bodyParts.torso.visible = true; bodyParts.head.visible = true;
+
+            playerGroup.position.set(0, 4, -68); 
+            playerGroup.rotation.set(0, 0, 0);
+            cameraPitch.rotation.set(0, 0, 0); 
+            
+            yasmin.position.set(0, 4, -64); 
+            yasmin.rotation.set(0, 0, 0);
+            
+            yasminJaw.rotation.x = 1.2;
+            yasminTongue.scale.z = 15;
+            yasminArmL.rotation.set(Math.PI/2, 0, 0); 
+            yasminArmR.rotation.set(Math.PI/2, 0, 0);
+
+            const cutsceneDiv = document.createElement('div');
+            cutsceneDiv.id = "cutscene-overlay";
+            cutsceneDiv.style.position = "absolute"; cutsceneDiv.style.top = "0"; cutsceneDiv.style.left = "0";
+            cutsceneDiv.style.width = "100%"; cutsceneDiv.style.height = "100%";
+            cutsceneDiv.style.background = "rgba(0,0,0,0.5)";
+            cutsceneDiv.style.display = "flex"; cutsceneDiv.style.flexDirection = "column";
+            cutsceneDiv.style.justifyContent = "center"; cutsceneDiv.style.alignItems = "center";
+            cutsceneDiv.style.zIndex = "90";
+            cutsceneDiv.innerHTML = `
+                <h1 class="text-6xl mb-4 font-bold text-blue-500" style="font-family: 'Creepster', cursive; text-shadow: 0 0 10px #000;">VOCÊ SAIU DA CASA...</h1>
+                <p class="text-red-500 text-5xl font-bold mt-4 animate-pulse" style="font-family: 'Creepster', cursive; text-shadow: 0 0 10px #000;">MAS ELA CONTINUA COM FOME!</p>
+            `;
+            document.body.appendChild(cutsceneDiv);
+            
+            setTimeout(() => {
+                moveState.phase = 'forest';
+                cutsceneDiv.remove();
+                showMessage("Ache GASOLINA e a BATERIA para ligar o Carro!");
+            }, 5000); 
+        }
+
+        function handleInteraction() {
+            if (!isLocked || moveState.dead || moveState.phase === 'escape_cutscene' || moveState.phase === 'driving') return;
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            const intersects = raycaster.intersectObjects(interactables);
+
+            if (intersects.length > 0) {
+                const target = intersects[0].object;
+
+                if (target.name === "rope" && moveState.tied) {
+                    moveState.ropeHealth -= 20;
+                    cameraPitch.position.x += (Math.random() - 0.5) * 0.1;
+                    setTimeout(() => cameraPitch.position.x = 0, 50);
+                    if (moveState.ropeHealth <= 0) {
+                        moveState.tied = false;
+                        interactables.filter(i => i.name === "rope").forEach(r => r.visible = false);
+                        showMessage("Mãos livres! Aperte ESPAÇO para levantar.");
+                    }
+                }
+
+                if (target.name.startsWith("key_") && moveState.standing) {
+                    const type = target.name.split("_")[1];
+                    moveState.keys[type] = true; target.visible = false;
+                    showMessage(`Você pegou a Chave ${type === 'silver' ? 'Prata' : type === 'red' ? 'Vermelha' : 'Azul'}!`);
+                    updateInventory();
+                }
+
+                if (target.name === "flashlight" && moveState.standing) {
+                    moveState.hasFlashlight = true; target.visible = false;
+                    showMessage("Lanterna! 'L' para usar."); updateInventory();
+                }
+
+                if (target.name === "gas_can" && moveState.standing) {
+                    moveState.hasGas = true; target.visible = false;
+                    showMessage("Você pegou a Gasolina!"); updateInventory();
+                }
+
+                if (target.name === "car_battery" && moveState.standing) {
+                    moveState.hasBattery = true; target.visible = false;
+                    showMessage("Você pegou a Bateria do Carro!"); updateInventory();
+                }
+
+                if (target.name === "car" && moveState.standing) {
+                    if(moveState.hasGas && moveState.hasBattery) {
+                        showMessage("Você consertou o carro! DIRIJA PARA LONGE!!");
+                        moveState.phase = 'driving'; moveState.inCar = true;
+                        
+                        // Joga a câmera pro carro
+                        carGroup.add(cameraPitch);
+                        cameraPitch.position.set(0, 1.2, 0); // Visão do motorista
+                        cameraPitch.rotation.set(0, 0, 0);
+                        playerGroup.visible = false; // Esconde o corpo antigo
+                        flashlightLight.visible = false; // Desliga lanterna de mão
+                    } else {
+                        showMessage("Falta peças! Encontre a Gasolina e a Bateria.");
+                    }
+                }
+
+                if (target.name === "door_basement" && moveState.standing && !moveState.doors.basement) {
+                    if (moveState.keys.silver) { showMessage("Porta destrancada..."); moveState.doors.basement = true; } 
+                    else showMessage("Trancada. Precisa da Chave Prata.");
+                }
+                if (target.name === "door_kitchen" && moveState.standing && !moveState.doors.kitchen) {
+                    if (moveState.keys.red) { showMessage("Cozinha aberta."); moveState.doors.kitchen = true; } 
+                    else showMessage("Trancada. A maçaneta tem uma marca Vermelha.");
+                }
+                if (target.name === "door_exit" && moveState.standing && !moveState.doors.exit) {
+                    if (moveState.keys.blue) { 
+                        moveState.doors.exit = true; 
+                        startEscapeCutscene(); 
+                    } 
+                    else showMessage("A Saída está trancada! Precisa da Chave Azul no 2º Andar.");
+                }
+            }
+        }
+
+        function applyColisionsLogic(px, pz, size) {
+            let py = 0;
+            if (pz > -7.4) { 
+                px = Math.max(-7+size, Math.min(7-size, px));
+                pz = Math.min(7-size, Math.max(-7.4, pz)); 
+                if (!moveState.doors.basement && pz < -7.4 + size) pz = -7.4 + size; 
+            } else if (pz > -20) { 
+                px = Math.max(-1.2+size, Math.min(1.2-size, px));
+            } else if (pz > -35) {
+                if (px < -5.5) { 
+                    px = Math.max(-19.5+size, px); pz = Math.max(-34.5+size, Math.min(-20.5-size, pz));
+                    if (pz > -27.0 && pz < -25.0) { if (!moveState.doors.kitchen) px = Math.min(-5.5 - size, px); } 
+                    else { px = Math.min(-5.5 - size, px); }
+                } else { 
+                    px = Math.min(5.5-size, px);
+                    if (pz > -27.0 && pz < -25.0) { if (!moveState.doors.kitchen) px = Math.max(-5.5 + size, px); }
+                    if (pz < -35 + size && (px < 2.5 || px > 5.5)) pz = -35 + size;
+                }
+            } else if (pz > -45) { 
+                px = Math.max(2.5+size, Math.min(5.5-size, px));
+                py = (( -35 - pz ) / 10) * 4; py = Math.max(0, Math.min(4, py));
+            } else if (pz > -64.5 || (!moveState.doors.exit && pz > -66)) { 
+                px = Math.max(-14.5+size, Math.min(14.5-size, px)); py = 4;
+                if (pz > -45 - size && (px < 2.5 || px > 5.5)) pz = -45 - size;
+                if (!moveState.doors.exit && pz < -64.5 + size) pz = -64.5 + size;
+            } else {
+                // Bosque Amplo (X de -100 a 100)
+                px = Math.max(-95+size, Math.min(95-size, px)); py = 4; pz = Math.max(-450, pz); 
+            }
+            return {x: px, y: py, z: pz};
+        }
+
+        function triggerJumpScare() {
+            moveState.dead = true; document.exitPointerLock();
+            
+            bloodOverlay.style.display = "none";
+            document.getElementById('inventory').style.display = "none";
+            document.getElementById('hints').style.display = "none";
+            flashlightLight.visible = false;
+            
+            Object.values(bodyParts).forEach(part => part.visible = false);
+
+            if(moveState.inCar) { cameraPitch = camera; } // Resgata câmera se estiver no carro
+
+            playerGroup.position.set(0, 500, 0); playerGroup.rotation.set(0, 0, 0);
+            cameraPitch.position.set(0, 1.5, 0); cameraPitch.rotation.set(0, 0, 0);
+            if(moveState.inCar) playerGroup.add(cameraPitch); // Devolve ao playerGroup
+
+            yasmin.position.set(0, 500, -3.0); yasmin.rotation.set(0, 0, 0); yasmin.scale.set(1, 1, 1);
+            
+            yasminJaw.rotation.x = 0; yasminTongue.scale.z = 0.1;
+            yasminArmL.rotation.set(-Math.PI / 4, 0, 0); yasminArmL.position.set(-0.3, 2.2, 0);
+            yasminArmR.rotation.set(-Math.PI / 4, 0, 0); yasminArmR.position.set(0.3, 2.2, 0);
+
+            moveState.inJumpscare = true; moveState.jumpscarePhase = 0; 
+
+            setTimeout(() => { moveState.jumpscarePhase = 1; yasmin.position.z = -1.5; }, 1000); 
+
+            setTimeout(() => {
+                moveState.jumpscarePhase = 2; voidLight.intensity = 15.0; 
+                bloodOverlay.style.background = "rgba(255, 0, 0, 0.5)"; bloodOverlay.style.display = "block";
+                yasminArmL.rotation.set(Math.PI/1.2, 0, -Math.PI/4); yasminArmL.position.set(-0.3, 2.0, 0.2); 
+                yasminArmR.rotation.set(Math.PI/1.2, 0, Math.PI/4); yasminArmR.position.set(0.3, 2.0, 0.2);
+            }, 3000); 
+
+            setTimeout(() => {
+                moveState.inJumpscare = false; voidLight.intensity = 0;
+                bloodOverlay.style.display = "none"; yasmin.visible = false;
+                instructions.style.display = "flex";
+                instructions.innerHTML = `
+                    <h1 class="text-7xl mb-4 font-bold text-red-700" style="font-family: 'Creepster', cursive;">DEVORADO</h1>
+                    <p class="text-white text-2xl">Você não foi rápido o suficiente.</p>
+                    <button class="mt-8 px-8 py-3 bg-red-800 text-white font-bold rounded hover:bg-red-600" onclick="location.reload()">RENASCER</button>
+                `;
+            }, 5000); 
+        }
+
+        function updateYasminAI(delta) {
+            let targetPos = new THREE.Vector3();
+            let px = moveState.inCar ? carGroup.position.x : playerGroup.position.x; 
+            let pz = moveState.inCar ? carGroup.position.z : playerGroup.position.z;
+            let yx = yasmin.position.x; let yz = yasmin.position.z;
+
+            let pZone = (pz > -7.4) ? 0 : (pz > -20) ? 1 : (px <= -5.5 && pz > -35) ? 2 : (pz > -35) ? 3 : (pz > -45) ? 4 : 5;
+            let yZone = (yz > -7.4) ? 0 : (yz > -20) ? 1 : (yx <= -5.5 && yz > -35) ? 2 : (yz > -35) ? 3 : (yz > -45) ? 4 : 5;
+
+            if (yZone === 5 && pZone !== 5) targetPos.set(4, 4, -45); 
+            else if (yZone === 4 && pZone < 4) targetPos.set(4, 0, -35); 
+            else if (yZone === 2 && pZone !== 2) targetPos.set(-5.5, 0, -26); 
+            else if (pZone === 0 && yZone !== 0) targetPos.set(-1.0, 0, -7.4); 
+            else if (pZone === 2 && yZone !== 2) targetPos.set(-5.5, 0, -26); 
+            else if (pZone === 5 && yZone !== 5 && yZone !== 4) targetPos.set(4, 0, -35); 
+            else if (pZone === 5 && yZone === 4) targetPos.set(4, 4, -45); 
+            else {
+                if(moveState.inCar) targetPos.copy(carGroup.position);
+                else targetPos.copy(playerGroup.position); 
+            }
+
+            yasmin.lookAt(targetPos.x, yasmin.position.y, targetPos.z);
+            
+            // VELOCIDADE DA YASMIN
+            if(moveState.phase === 'forest' || moveState.phase === 'driving') yasmin.translateZ(3.2 * delta); 
+            else yasmin.translateZ(2.2 * delta); // Normal na casa
+
+            let newYPos = applyColisionsLogic(yasmin.position.x, yasmin.position.z, 0.4);
+            yasmin.position.x = newYPos.x;
+            yasmin.position.y = (moveState.phase === 'forest' || moveState.phase === 'driving') ? 4 : newYPos.y;
+            yasmin.position.z = newYPos.z;
+
+            let dist;
+            if(moveState.inCar) dist = carGroup.position.distanceTo(yasmin.position);
+            else dist = playerGroup.position.distanceTo(yasmin.position);
+
+            if (dist < 20 && moveState.phase !== 'driving') {
+                warningTxt.style.display = "block";
+                warningTxt.style.animationDuration = Math.max(0.04, dist / 150) + "s";
+            } else {
+                warningTxt.style.display = "none";
+            }
+
+            if (dist < 2.0 && moveState.phase !== 'driving') {
+                triggerJumpScare(); warningTxt.style.display = "none";
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = 0.016;
+
+            // Movimento Jogador A Pé
+            if (isLocked && moveState.standing && !moveState.dead && moveState.phase !== 'escape_cutscene' && moveState.phase !== 'win' && !moveState.inCar) {
+                velocity.x -= velocity.x * 10.0 * delta; velocity.z -= velocity.z * 10.0 * delta;
+                direction.z = Number(keys.w) - Number(keys.s); direction.x = Number(keys.d) - Number(keys.a); direction.normalize();
+
+                const speed = 55.0; 
+                if (keys.w || keys.s) velocity.z -= direction.z * speed * delta;
+                if (keys.a || keys.d) velocity.x += direction.x * speed * delta;
+
+                playerGroup.translateX(velocity.x * delta); playerGroup.translateZ(velocity.z * delta);
+                
+                let newPPos = applyColisionsLogic(playerGroup.position.x, playerGroup.position.z, 0.3);
+                playerGroup.position.set(newPPos.x, newPPos.y, newPPos.z);
+            }
+
+            // Movimento Dirigindo o Carro
+            if (isLocked && moveState.phase === 'driving' && !moveState.dead) {
+                let carSpeed = 0;
+                if(keys.w) carSpeed = 40 * delta; // Carro rápido para frente
+                if(keys.s) carSpeed = -15 * delta; // Ré
+                
+                if(keys.a) carGroup.rotation.y += 1.5 * delta; // Vira Esquerda
+                if(keys.d) carGroup.rotation.y -= 1.5 * delta; // Vira Direita
+                
+                carGroup.translateZ(-carSpeed);
+                
+                // Impede carro de sair do mapa pros lados
+                if(carGroup.position.x > 90) carGroup.position.x = 90;
+                if(carGroup.position.x < -90) carGroup.position.x = -90;
+
+                // CONDIÇÃO DE VITÓRIA FINAL (Chegar no fim da estrada Z < -400)
+                if (carGroup.position.z < -400) {
+                    moveState.phase = 'win';
+                    document.exitPointerLock();
+                    warningTxt.style.display = "none";
+                    instructions.style.display = "flex";
+                    instructions.innerHTML = `
+                        <h1 class="text-7xl mb-4 font-bold text-green-500" style="font-family: 'Creepster', cursive;">SOBREVIVEU</h1>
+                        <p class="text-white text-2xl">Você dirigiu para longe e escapou do pesadelo.</p>
+                        <button class="mt-8 px-8 py-3 bg-gray-800 text-white font-bold rounded hover:bg-gray-600" onclick="location.reload()">JOGAR NOVAMENTE</button>
+                    `;
+                }
+            }
+
+            if (moveState.doors.basement && doorsMeshes.basement.rotation.y < Math.PI / 2) doorsMeshes.basement.rotation.y += 0.04;
+            if (moveState.doors.kitchen && doorsMeshes.kitchen.rotation.y > -Math.PI / 2) doorsMeshes.kitchen.rotation.y -= 0.04;
+            if (moveState.doors.exit && doorsMeshes.exit.rotation.y < Math.PI / 2) doorsMeshes.exit.rotation.y += 0.04;
+
+            // FASE: DENTRO DA CASA OU BOSQUE OU DIRIGINDO
+            if (moveState.doors.basement && !moveState.dead && moveState.phase !== 'escape_cutscene' && moveState.phase !== 'win') {
+                updateYasminAI(delta);
+                
+                if(moveState.phase === 'forest' || moveState.phase === 'driving') {
+                    yasminTongue.rotation.z = Math.sin(Date.now() * 0.05) * 0.6;
+                    yasminJaw.rotation.x = 1.0 + (Math.random() * 0.3);
+                }
+            }
+            
+            // FASE: CUTSCENE DE FUGA
+            if (moveState.phase === 'escape_cutscene') {
+                playerGroup.translateZ(-7 * delta);
+                yasmin.translateZ(-7.2 * delta); 
+                yasminTongue.rotation.z = Math.sin(Date.now() * 0.04) * 0.8; 
+                cameraPitch.position.x = (Math.random() - 0.5) * 0.15; 
+            }
+
+            // JUMPSCARE (Cutscene da Morte)
+            if (moveState.inJumpscare) {
+                if (moveState.jumpscarePhase === 1) {
+                    voidLight.intensity = Math.random() > 0.4 ? 12.0 : 0.0;
+                    yasminJaw.rotation.x = 0.2; 
+                    yasmin.position.x = (Math.random() - 0.5) * 0.05;
+                    cameraPitch.position.x = (Math.random() - 0.5) * 0.02;
+                } else if (moveState.jumpscarePhase === 2) {
+                    if(yasmin.scale.x < 1.6) yasmin.scale.addScalar(0.06); 
+                    yasmin.position.x = (Math.random() - 0.5) * 0.2;
+                    yasmin.position.y = 500 + (Math.random() - 0.5) * 0.2;
+                    yasmin.position.z += 0.06;
+                    if(yasmin.position.z > -0.25) yasmin.position.z = -0.25; 
+                    yasminJaw.rotation.x = 2.0 + Math.random() * 0.5; 
+                    yasminTongue.scale.z = 15;
+                    yasminTongue.rotation.z = Math.sin(Date.now() * 0.1) * 1.5;
+                    cameraPitch.position.x = (Math.random() - 0.5) * 0.2;
+                    cameraPitch.position.y = 1.5 + (Math.random() - 0.5) * 0.2;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
