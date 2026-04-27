@@ -53,10 +53,9 @@
             display: none; letter-spacing: 5px;
         }
 
-        /* Efeito de Vinheta de Terror */
         #vignette {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.9) 100%);
+            background: radial-gradient(circle, rgba(0,0,0,0) 50%, rgba(0,0,0,0.7) 100%);
             pointer-events: none; z-index: 45;
         }
 
@@ -1759,8 +1758,8 @@
         }
 
         function updateYasminAI(delta) {
-            if (moveState.phase === 'fernando_cutscene') return; // Para no susto
-
+            if (moveState.phase === 'fernando_cutscene' || !yasmin || !playerGroup) return; 
+            const distToPlayer = yasmin.position.distanceTo(playerGroup.position);
             if (moveState.phase === 'forest' || moveState.phase === 'driving') {
                 let tX = moveState.inCar ? carGroup.position.x : playerGroup.position.x; 
                 let tZ = moveState.inCar ? carGroup.position.z : playerGroup.position.z;
@@ -1778,7 +1777,6 @@
                 return;
             }
 
-            let distToPlayer = yasmin.position.distanceTo(playerGroup.position);
             let canSee = false;
 
             if (!moveState.hidden && distToPlayer < 25) {
@@ -1856,7 +1854,11 @@
         function animate() {
             requestAnimationFrame(animate);
             const delta = Math.min(clock.getDelta(), 0.1); 
-            let isMoving = false; // Declarado no escopo da função para evitar ReferenceError
+            let isMoving = false; 
+
+            // Cálculo global de distância para efeitos e IA
+            const distToPlayer = (yasmin && playerGroup) ? playerGroup.position.distanceTo(yasmin.position) : 1000;
+            
             floatingItems.forEach(item => {
                 if (item.visible) {
                     item.rotation.y += 1.5 * delta;
@@ -2141,22 +2143,25 @@
             }
 
             // Efeito de Interferência Visual (Glich) quando Yasmin está perto
+            const staticOverlay = document.getElementById('tv-static-overlay');
             if(distToPlayer < 12) {
-                const intensity = (12 - distToPlayer) / 12;
+                const intensity = Math.max(0, (12 - distToPlayer) / 12);
                 document.body.style.filter = `contrast(${100 + intensity*40}%) brightness(${100 + (Math.random()-0.5)*15}%) saturate(${100 + intensity*50}%)`;
-                document.getElementById('tv-static-overlay').style.display = 'block';
-                document.getElementById('tv-static-overlay').style.opacity = 0.02 + intensity * 0.08;
+                if(staticOverlay) {
+                    staticOverlay.style.display = 'block';
+                    staticOverlay.style.opacity = 0.02 + intensity * 0.08;
+                }
                 
                 // Lanterna Falhando (Flicker)
-                if(moveState.flashlightOn && Math.random() < intensity * 0.3) {
+                if(flashlightLight && moveState.flashlightOn && Math.random() < intensity * 0.3) {
                     flashlightLight.intensity = Math.random() > 0.5 ? 40.0 : 2.0;
-                } else if(moveState.flashlightOn) {
+                } else if(flashlightLight && moveState.flashlightOn) {
                     flashlightLight.intensity = 40.0;
                 }
             } else {
                 document.body.style.filter = "none";
-                document.getElementById('tv-static-overlay').style.display = 'none';
-                if(moveState.flashlightOn) flashlightLight.intensity = 40.0;
+                if(staticOverlay) staticOverlay.style.display = 'none';
+                if(flashlightLight && moveState.flashlightOn) flashlightLight.intensity = 40.0;
             }
 
             // Movimento das partículas
