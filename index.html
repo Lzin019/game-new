@@ -52,6 +52,20 @@
             animation: flash 0.15s infinite alternate; z-index: 50; pointer-events: none;
             display: none; letter-spacing: 5px;
         }
+
+        /* Efeito de Vinheta de Terror */
+        #vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.9) 100%);
+            pointer-events: none; z-index: 45;
+        }
+
+        /* Efeito de Ruído/Estática */
+        #tv-static-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://media.giphy.com/media/oEI9uWUqnW3Ze/giphy.gif');
+            opacity: 0.03; pointer-events: none; z-index: 40; display: none;
+        }
         @keyframes flash {
             from { opacity: 0.1; transform: scale(1); }
             to { opacity: 1; transform: scale(1.05); }
@@ -152,6 +166,8 @@
 </head>
 <body>
 
+    <div id="vignette"></div>
+    <div id="tv-static-overlay"></div>
     <div id="instructions">
         <h1 class="text-6xl mb-4 font-bold text-red-700" style="font-family: 'Creepster', cursive;">FUJA DA YASMIN</h1>
         <p class="mb-4 text-xl">Sobreviva. Esconda-se. Descubra a História.</p>
@@ -474,6 +490,7 @@
             createItemsAndLore();
             createFurniture(); 
             createYasmin();
+            createAtmosphere(); // Partículas de poeira/cinzas
 
             yasminAI.target.copy(yasminAI.waypoints[0]); 
 
@@ -584,6 +601,18 @@
             addWall(-25, 2, -20, 0.5, 4, 30); // Parede Esquerda
             createWindow(-25, 2, -20, -Math.PI/2);
 
+            // --- COZINHA (Nova - Fundos da Sala de Jantar) ---
+            addWall(-17.5, 2, -35, 15, 4, 0.5); // Parede fundo
+            addWall(-25, 2, -30, 0.5, 4, 10);  // Parede lateral esquerda
+            addWall(-10, 2, -32.5, 0.5, 4, 5); // Divisória
+            createWindow(-17.5, 2, -35, 0); // Janela da cozinha
+
+            // --- BANHEIRO (Novo - Lateral da Sala de Estar) ---
+            addWall(10, 2, -25, 0.5, 4, 10); // Parede lateral interna
+            addWall(17.5, 2, -30, 15, 4, 0.5); // Parede fundo
+            addWall(25, 2, -25, 0.5, 4, 10); // Parede lateral externa
+            createWindow(25, 2, -30, Math.PI/2); // Janela do banheiro
+            addWall(17.5, 3.5, -20, 15, 1, 0.5); // Viga superior de entrada
             // Restante das paredes originais (mantidas e ajustadas)
             addWall(0, 3.75, -55, 30, 0.5, 20, 0x221111);
             addWall(0, 8.25, -55, 30, 0.5, 20, 0x050505);
@@ -932,11 +961,22 @@
             tvGrp.position.set(20, 0, -5);
             const tvBody = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 0.3), new THREE.MeshStandardMaterial({color: 0x111111}));
             tvBody.position.y = 2.5; tvGrp.add(tvBody);
-            const screen = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.8), new THREE.MeshBasicMaterial({color: 0x111111, emissive: 0x050505}));
-            screen.position.set(0, 2.5, 0.16); tvGrp.add(screen);
+            
+            // Tela com estática pulsante
+            const screen = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.8), new THREE.MeshBasicMaterial({color: 0x222222}));
+            screen.position.set(0, 2.5, 0.16); 
+            screen.name = "tv_screen";
+            tvGrp.add(screen);
+            
             const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 1.5), new THREE.MeshStandardMaterial({color: 0x222222}));
             stand.position.y = 0.75; tvGrp.add(stand);
             scene.add(tvGrp);
+
+            // Luz da TV
+            const tvLight = new THREE.PointLight(0x4444ff, 0.8, 8);
+            tvLight.position.set(20, 2.5, -4.5);
+            tvLight.name = "tv_light";
+            scene.add(tvLight);
 
             // --- MESA DE JANTAR (Sala de Jantar) ---
             const tableGrp = new THREE.Group();
@@ -949,7 +989,41 @@
                     leg.position.set(x*2.2, 0.6, z*1.3); tableGrp.add(leg);
                 }
             }
-            scene.add(tableGrp);
+            // --- COZINHA: Balcões e Fogão ---
+            const counterGrp = new THREE.Group();
+            counterGrp.position.set(-23, 0, -32);
+            const counter = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 4), new THREE.MeshStandardMaterial({color: 0x444444}));
+            counter.position.y = 0.6; counterGrp.add(counter);
+            const stove = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.1, 1.2), new THREE.MeshStandardMaterial({color: 0x111111}));
+            stove.position.set(0, 0.55, 1); counterGrp.add(stove);
+            scene.add(counterGrp);
+
+            // --- BANHEIRO: Banheira Velha ---
+            const tubGrp = new THREE.Group();
+            tubGrp.position.set(20, 0, -25);
+            const tubBase = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.8, 3), new THREE.MeshStandardMaterial({color: 0xcccccc}));
+            tubBase.position.y = 0.4; tubGrp.add(tubBase);
+            scene.add(tubGrp);
+
+            // --- FLORESTA: Detalhes do Solo (Pedras e Troncos) ---
+            for(let i=0; i<30; i++) {
+                const rock = new THREE.Mesh(
+                    new THREE.DodecahedronGeometry(0.5 + Math.random(), 0),
+                    new THREE.MeshStandardMaterial({color: 0x444444})
+                );
+                rock.position.set((Math.random()-0.5)*150, 0.2, -50 - Math.random()*300);
+                rock.rotation.set(Math.random(), Math.random(), Math.random());
+                scene.add(rock);
+            }
+
+            // --- ACAMPAMENTO ABANDONADO ---
+            const campGrp = new THREE.Group();
+            campGrp.position.set(60, 0, -180);
+            const tent = new THREE.Mesh(new THREE.ConeGeometry(3, 4, 4), new THREE.MeshStandardMaterial({color: 0x223322}));
+            tent.rotation.y = Math.PI/4; tent.position.y = 2; campGrp.add(tent);
+            const firePit = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.2, 8, 12), new THREE.MeshStandardMaterial({color: 0x333333}));
+            firePit.rotation.x = Math.PI/2; firePit.position.set(5, 0.1, 0); campGrp.add(firePit);
+            scene.add(campGrp);
         }
 
         function createFullBody() {
@@ -1256,6 +1330,33 @@
                 'image-rendering:auto'
             ].join(';');
             document.body.appendChild(yasminImg);
+        }
+
+        function createAtmosphere() {
+            // Partículas de poeira/cinzas flutuando no ar
+            const partCount = 150;
+            const partGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(partCount * 3);
+            for(let i=0; i<partCount*3; i++) positions[i] = (Math.random()-0.5) * 100;
+            partGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const partMat = new THREE.PointsMaterial({color: 0xaaaaaa, size: 0.05, transparent: true, opacity: 0.4});
+            const particles = new THREE.Points(partGeo, partMat);
+            particles.name = "dust_particles";
+            scene.add(particles);
+
+            // Arbustos secos na floresta
+            for(let i=0; i<40; i++) {
+                const bush = new THREE.Group();
+                const branchMat = new THREE.MeshStandardMaterial({color: 0x1a0d00});
+                for(let j=0; j<5; j++) {
+                    const branch = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.05, 1.5), branchMat);
+                    branch.rotation.set(Math.random(), Math.random(), Math.random());
+                    branch.position.y = 0.5;
+                    bush.add(branch);
+                }
+                bush.position.set((Math.random()-0.5)*180, 4.1, -50 - Math.random()*350);
+                scene.add(bush);
+            }
         }
 
         function handleRotation(e) {
@@ -2028,6 +2129,41 @@
                         }
                     }
                 }
+            }
+
+            // Animação da TV e Efeitos de Proximidade
+            const tvScreen = scene.getObjectByName("tv_screen");
+            const tvLight = scene.getObjectByName("tv_light");
+            if(tvScreen) {
+                const s = Math.random();
+                tvScreen.material.color.setRGB(s*0.5+0.2, s*0.5+0.2, s*0.6+0.3);
+                if(tvLight) tvLight.intensity = 0.5 + Math.random()*0.5;
+            }
+
+            // Efeito de Interferência Visual (Glich) quando Yasmin está perto
+            if(distToPlayer < 12) {
+                const intensity = (12 - distToPlayer) / 12;
+                document.body.style.filter = `contrast(${100 + intensity*40}%) brightness(${100 + (Math.random()-0.5)*15}%) saturate(${100 + intensity*50}%)`;
+                document.getElementById('tv-static-overlay').style.display = 'block';
+                document.getElementById('tv-static-overlay').style.opacity = 0.02 + intensity * 0.08;
+                
+                // Lanterna Falhando (Flicker)
+                if(moveState.flashlightOn && Math.random() < intensity * 0.3) {
+                    flashlightLight.intensity = Math.random() > 0.5 ? 40.0 : 2.0;
+                } else if(moveState.flashlightOn) {
+                    flashlightLight.intensity = 40.0;
+                }
+            } else {
+                document.body.style.filter = "none";
+                document.getElementById('tv-static-overlay').style.display = 'none';
+                if(moveState.flashlightOn) flashlightLight.intensity = 40.0;
+            }
+
+            // Movimento das partículas
+            const particles = scene.getObjectByName("dust_particles");
+            if(particles) {
+                particles.rotation.y += 0.01 * delta;
+                particles.position.y = Math.sin(Date.now()*0.001)*0.5;
             }
 
             renderer.render(scene, camera);
