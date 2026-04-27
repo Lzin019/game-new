@@ -1755,7 +1755,7 @@
         function animate() {
             requestAnimationFrame(animate);
             const delta = Math.min(clock.getDelta(), 0.1); 
-
+            let isMoving = false; // Declarado no escopo da função para evitar ReferenceError
             floatingItems.forEach(item => {
                 if (item.visible) {
                     item.rotation.y += 1.5 * delta;
@@ -1848,7 +1848,7 @@
                     canJump = false;
                 }
 
-                let isMoving = (keys.w || keys.s || keys.a || keys.d);
+                isMoving = (keys.w || keys.s || keys.a || keys.d);
                 if (isMoving) {
                     let animSpeed = keys.shift ? 15 : 10;
                     if (isDashing) animSpeed = 25;
@@ -1882,8 +1882,9 @@
 
             if (isLocked && moveState.phase === 'driving' && !moveState.dead) {
                 let carSpeed = 0;
-                if(keys.w) carSpeed = 40 * delta; if(keys.s) carSpeed = -15 * delta; 
-                
+                if(keys.w) { carSpeed = 40 * delta; isMoving = true; }
+                if(keys.s) { carSpeed = -15 * delta; isMoving = true; }
+                if(keys.a || keys.d) isMoving = true;                
                 if(keys.a) carGroup.rotation.y += 1.5 * delta; if(keys.d) carGroup.rotation.y -= 1.5 * delta; 
                 
                 let oldPos = carGroup.position.clone();
