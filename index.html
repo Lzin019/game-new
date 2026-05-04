@@ -33,7 +33,7 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); color: white; display: flex;
             flex-direction: column; justify-content: center; align-items: center;
-            text-align: center; cursor: pointer; z-index: 100;
+            text-align: center; cursor: pointer; z-index: 999;
         }
         .controls-hint {
             position: absolute; bottom: 20px; left: 20px; color: rgba(255,255,255,0.7);
@@ -103,63 +103,165 @@
             flex-direction: column; align-items: center; justify-content: center;
             color: white; font-family: 'Courier New', Courier, monospace; overflow: hidden;
         }
-        .fernando-container {
-            position: relative;
-            animation: descend 12s ease-out forwards;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .fernando-img {
-            width: 250px;
-            height: 250px;
-            border-radius: 50%;
-            object-fit: cover;
-            box-shadow: 0 0 60px #fff, 0 0 120px gold;
-            border: 5px solid #fff;
-            z-index: 2;
-            position: relative;
-        }
-        .halo {
-            position: absolute;
-            top: -45px;
-            width: 150px;
-            height: 45px;
-            border: 10px solid rgba(255, 215, 0, 0.9);
-            border-radius: 50%;
-            box-shadow: 0 0 20px gold, inset 0 0 20px gold;
-            z-index: 3;
-        }
-        .wing {
-            position: absolute;
-            font-size: 160px;
-            top: 20px;
-            z-index: 1;
-            filter: drop-shadow(0 0 20px white);
-        }
+        .fernando-container { position: relative; animation: descend 12s ease-out forwards; margin-bottom: 20px; display: flex; justify-content: center; align-items: center; }
+        .fernando-img { width: 250px; height: 250px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 60px #fff, 0 0 120px gold; border: 5px solid #fff; z-index: 2; position: relative; }
+        .halo { position: absolute; top: -45px; width: 150px; height: 45px; border: 10px solid rgba(255,215,0,0.9); border-radius: 50%; box-shadow: 0 0 20px gold, inset 0 0 20px gold; z-index: 3; }
+        .wing { position: absolute; font-size: 160px; top: 20px; z-index: 1; filter: drop-shadow(0 0 20px white); }
         .wing-left { left: -140px; transform: scaleX(-1) rotate(-15deg); }
         .wing-right { right: -140px; transform: rotate(-15deg); }
-        @keyframes descend {
-            0% { transform: translateY(-400px) scale(0.5); opacity: 0; filter: blur(10px); }
-            40% { opacity: 1; filter: blur(0px); }
-            100% { transform: translateY(0) scale(1.0); opacity: 1; }
+        @keyframes descend { 0% { transform: translateY(-400px) scale(0.5); opacity: 0; filter: blur(10px); } 40% { opacity: 1; filter: blur(0); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+        @keyframes talking-shake { 0%{transform:translate(1px,1px) rotate(0deg);} 25%{transform:translate(-1px,-2px) rotate(-1deg);} 50%{transform:translate(-2px,0) rotate(1deg);} 75%{transform:translate(2px,2px) rotate(0deg);} 100%{transform:translate(1px,-1px) rotate(1deg);} }
+        .is-talking .fernando-img { animation: talking-shake 0.15s infinite; }
+        .fernando-text { font-size: 2.2rem; margin-top: 60px; text-align: center; max-width: 70%; line-height: 1.5; color: #ffddaa; text-shadow: 0 0 15px rgba(255,215,0,0.6); min-height: 120px; font-weight: bold; }
+
+        /* === CUTSCENE MINECRAFT (Matar Yasmin) === */
+        #mc-cutscene {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg, #1a4a1a 0%, #0a2a0a 50%, #060f06 100%);
+            z-index: 300; display: none; overflow: hidden; font-family: 'Courier New', monospace;
         }
-        @keyframes talking-shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            25% { transform: translate(-1px, -2px) rotate(-1deg); }
-            50% { transform: translate(-2px, 0px) rotate(1deg); }
-            75% { transform: translate(2px, 2px) rotate(0deg); }
-            100% { transform: translate(1px, -1px) rotate(1deg); }
+        #mc-cutscene .mc-title {
+            position: absolute; top: 8%; left: 50%; transform: translateX(-50%);
+            color: #ff3333; font-size: 3rem; font-weight: bold; text-align: center;
+            text-shadow: 0 0 20px #ff0000, 3px 3px 0 #000;
+            animation: mc-title-flash 0.5s steps(1) infinite;
         }
-        .is-talking .fernando-img {
-            animation: talking-shake 0.15s infinite;
+        @keyframes mc-title-flash { 0%{opacity:1;} 50%{opacity:0.6;} 100%{opacity:1;} }
+        .mc-forest-bg {
+            position: absolute; bottom: 0; width: 100%; height: 55%;
+            background: #060f06;
         }
-        .fernando-text {
-            font-size: 2.2rem; margin-top: 60px; text-align: center;
-            max-width: 70%; line-height: 1.5; color: #ffddaa;
-            text-shadow: 0 0 15px rgba(255,215,0,0.6);
-            min-height: 120px; font-weight: bold;
+        .mc-tree-bg {
+            position: absolute; bottom: 40%;
+            width: 40px; background: #0a1f0a;
+        }
+        .mc-tree-top-bg {
+            position: absolute; background: #0d2a0d;
+            image-rendering: pixelated;
+        }
+        #mc-char-wrapper {
+            position: absolute; bottom: 38%;
+            display: flex; flex-direction: column; align-items: center;
+            image-rendering: pixelated;
+            animation: yasmin-flee 5s ease-in forwards;
+            animation-delay: 1.5s;
+        }
+        @keyframes yasmin-flee {
+            0%   { transform: translateX(0vw) scale(1);   opacity: 1; }
+            80%  { opacity: 1; }
+            100% { transform: translateX(80vw) scale(0.08); opacity: 0; }
+        }
+        .mc-nametag {
+            background: rgba(0,0,0,0.75); color: #fff;
+            font-size: 16px; font-weight: bold; padding: 3px 10px;
+            border: 2px solid rgba(255,255,255,0.4); margin-bottom: 6px;
+            white-space: nowrap; letter-spacing: 2px;
+        }
+        .mc-char {
+            position: relative; display: flex; flex-direction: column; align-items: center;
+        }
+        .mc-head {
+            width: 48px; height: 48px;
+            background: #c8a06e; border: 3px solid #000;
+            position: relative; z-index: 2;
+        }
+        .mc-head::before {
+            content: ''; position: absolute;
+            top: 14px; left: 8px;
+            width: 10px; height: 10px; background: #1a0a0a;
+            box-shadow: 20px 0 0 #1a0a0a;
+        }
+        .mc-head::after {
+            content: ''; position: absolute;
+            top: 28px; left: 10px;
+            width: 28px; height: 5px; background: #7a2010;
+        }
+        .mc-mid {
+            display: flex; align-items: flex-start;
+        }
+        .mc-arm {
+            width: 14px; height: 48px;
+            background: #c8a06e; border: 3px solid #000;
+        }
+        .mc-arm-l { animation: arm-l 0.35s steps(2) infinite; transform-origin: top center; }
+        .mc-arm-r { animation: arm-r 0.35s steps(2) infinite; transform-origin: top center; }
+        @keyframes arm-l { 0%{transform:rotate(-30deg);} 100%{transform:rotate(30deg);} }
+        @keyframes arm-r { 0%{transform:rotate(30deg);} 100%{transform:rotate(-30deg);} }
+        .mc-torso {
+            width: 36px; height: 48px;
+            background: #3a6a3a; border: 3px solid #000;
+        }
+        .mc-legs {
+            display: flex;
+        }
+        .mc-leg {
+            width: 16px; height: 48px;
+            background: #2a3a7a; border: 3px solid #000;
+        }
+        .mc-leg-l { animation: leg-l 0.35s steps(2) infinite; transform-origin: top center; }
+        .mc-leg-r { animation: leg-r 0.35s steps(2) infinite; transform-origin: top center; }
+        @keyframes leg-l { 0%{transform:rotate(-25deg);} 100%{transform:rotate(25deg);} }
+        @keyframes leg-r { 0%{transform:rotate(25deg);} 100%{transform:rotate(-25deg);} }
+        .mc-blood {
+            position: absolute; top: 20px; width: 5px; background: #cc0000;
+            border-radius: 0 0 3px 3px; animation: blood-drip 0.6s ease-in infinite;
+        }
+        @keyframes blood-drip { 0%{height:0;opacity:1;} 100%{height:35px;opacity:0;} }
+        .mc-blood:nth-child(1){left:10px; animation-delay:0s;}
+        .mc-blood:nth-child(2){left:22px; animation-delay:0.2s;}
+        .mc-blood:nth-child(3){left:34px; animation-delay:0.4s;}
+
+        /* HUD da Arma */
+        #gun-hud {
+            position: absolute; bottom: 25px; right: 25px;
+            color: #ffdd00; font-family: 'Courier New', monospace;
+            font-size: 1.3rem; font-weight: bold;
+            background: rgba(0,0,0,0.6); padding: 8px 16px;
+            border: 2px solid #ffdd0055; border-radius: 4px;
+            display: none; pointer-events: none; z-index: 10;
+        }
+
+        /* CONTROLES MOBILE */
+        #mobile-controls {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 50; display: none;
+        }
+        .touch-btn {
+            position: absolute; pointer-events: auto;
+            width: 70px; height: 70px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 24px; font-weight: bold;
+            user-select: none; -webkit-tap-highlight-color: transparent;
+        }
+        .touch-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.9); }
+        
+        #joystick-container {
+            position: absolute; bottom: 40px; left: 40px;
+            width: 140px; height: 140px;
+            background: rgba(0,0,0,0.2); border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 50%; pointer-events: auto;
+        }
+        #joystick-stick {
+            position: absolute; top: 40px; left: 40px;
+            width: 60px; height: 60px;
+            background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4);
+            border-radius: 50%; transition: transform 0.05s linear;
+        }
+        #btn-jump { bottom: 120px; right: 40px; }
+        #btn-dash { bottom: 40px; right: 130px; }
+        #btn-light { bottom: 40px; right: 40px; background: rgba(255,215,0,0.1); }
+        #btn-interact-mobile { top: 50%; right: 40px; transform: translateY(-50%); width: 80px; height: 80px; background: rgba(255,0,0,0.1); }
+
+        @media (max-width: 768px) {
+            #inventory { top: 10px; right: 10px; width: 140px; }
+            #gun-hud { top: 10px; left: 10px; bottom: auto; right: auto; font-size: 1rem; }
+            #instructions h1 { font-size: 3rem; }
+            #msg-box { font-size: 1rem; bottom: 100px; }
+            #hints { display: none; }
         }
     </style>
 </head>
@@ -181,6 +283,43 @@
     <div id="inventory">
         <h3 class="text-yellow-500 font-bold mb-2 border-b border-gray-600 pb-1">INVENTÁRIO</h3>
         <div id="inv-list" class="text-sm text-gray-400">Vazio</div>
+    </div>
+    <div id="gun-hud">🔫 <span id="gun-ammo">6</span>/6</div>
+
+    <!-- Controles Mobile -->
+    <div id="mobile-controls">
+        <div id="joystick-container">
+            <div id="joystick-stick"></div>
+        </div>
+        <div id="btn-jump" class="touch-btn">🚀</div>
+        <div id="btn-dash" class="touch-btn">⚡</div>
+        <div id="btn-light" class="touch-btn">🔦</div>
+        <div id="btn-interact-mobile" class="touch-btn">🎯</div>
+    </div>
+
+    <!-- Cutscene Minecraft -->
+    <div id="mc-cutscene">
+        <div class="mc-title">💀 YASMIN FOI ELIMINADA 💀</div>
+        <div class="mc-forest-bg"></div>
+        <div id="mc-char-wrapper">
+            <div class="mc-nametag">Yasmin</div>
+            <div class="mc-char">
+                <div class="mc-head">
+                    <div class="mc-blood"></div>
+                    <div class="mc-blood"></div>
+                    <div class="mc-blood"></div>
+                </div>
+                <div class="mc-mid">
+                    <div class="mc-arm mc-arm-l"></div>
+                    <div class="mc-torso"></div>
+                    <div class="mc-arm mc-arm-r"></div>
+                </div>
+                <div class="mc-legs">
+                    <div class="mc-leg mc-leg-l"></div>
+                    <div class="mc-leg mc-leg-r"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="yasmin-warning">PARAAAA FERNANDO</div>
@@ -209,7 +348,7 @@
     <div id="note-ui" class="hidden fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm">
         <div class="bg-[#f4e4bc] p-10 max-w-lg shadow-[0_0_30px_rgba(0,0,0,1)] text-black font-serif text-2xl transform rotate-1 border border-yellow-800/30">
             <p id="note-text" class="leading-relaxed whitespace-pre-wrap"></p>
-            <p class="text-sm mt-8 text-red-800 text-center font-bold font-sans animate-pulse">[Pressione E para guardar a nota]</p>
+            <p class="text-sm mt-8 text-red-800 text-center font-bold font-sans animate-pulse" id="note-close-hint">[Pressione E para guardar a nota]</p>
         </div>
     </div>
 
@@ -217,8 +356,23 @@
         const apiKey = ""; 
 
         let scene, camera, renderer, raycaster;
-        const clock = new THREE.Clock(); 
         let isLocked = false;
+        let walkTime = 0;
+        let lastFrameTime = performance.now();
+        const clock = new THREE.Clock();
+
+        // --- SISTEMA MOBILE ---
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const mobileState = {
+            joystick: { active: false, x: 0, y: 0, startX: 0, startY: 0 },
+            rotation: { active: false, lastX: 0, lastY: 0, startX: 0, startY: 0, moved: false }
+        };
+
+        if (isMobile) {
+            document.getElementById('mobile-controls').style.display = 'block';
+            document.getElementById('crosshair').style.display = 'none'; 
+            document.getElementById('note-close-hint').innerText = "[Toque para guardar a nota]";
+        }
         
         let moveState = { 
             tied: true, standing: false,
@@ -226,9 +380,10 @@
             doors: { basement: false, kitchen: false, exit: false },
             hasFlashlight: false, flashlightOn: false,
             hasGas: false, hasBattery: false, inCar: false,
+            hasGun: false, gunAmmo: 6, yasminDead: false,
             hidden: false, readingNote: false, interactingWithMirror: false, 
             ropeHealth: 100, dead: false, inJumpscare: false, thirdPerson: false,
-            jumpscarePhase: 0, phase: 'house' // 'house', 'escape_cutscene', 'forest', 'driving', 'fernando_cutscene', 'win'
+            jumpscarePhase: 0, phase: 'house'
         };
         
         let velocity = new THREE.Vector3(); let direction = new THREE.Vector3();
@@ -246,7 +401,6 @@
         let flashlightLight; let voidLight; let bodyParts = {}; 
         let fpFlashlightGroup; 
         
-        let walkTime = 0;
         let interactAnimActive = false;
         let interactAnimTime = 0;
 
@@ -297,19 +451,146 @@
 
         function updateInventory() {
             let items = [];
-            if(moveState.keys.silver) items.push("<span class='text-gray-300'>🔑 Chave Prata</span>");
-            if(moveState.keys.red) items.push("<span class='text-red-500'>🔑 Chave Vermelha</span>");
-            if(moveState.keys.blue) items.push("<span class='text-blue-500'>🔑 Chave Azul</span>");
-            if(moveState.hasFlashlight) items.push("🔦 Lanterna");
-            if(moveState.hasGas) items.push("<span class='text-orange-500'>🛢️ Gasolina</span>");
-            if(moveState.hasBattery) items.push("<span class='text-yellow-400'>🔋 Bateria</span>");
+            if(moveState.keys.silver) items.push("<span class='text-gray-300'>\uD83D\uDD11 Chave Prata</span>");
+            if(moveState.keys.red) items.push("<span class='text-red-500'>\uD83D\uDD11 Chave Vermelha</span>");
+            if(moveState.keys.blue) items.push("<span class='text-blue-500'>\uD83D\uDD11 Chave Azul</span>");
+            if(moveState.hasFlashlight) items.push("\uD83D\uDD26 Lanterna");
+            if(moveState.hasGas) items.push("<span class='text-orange-500'>\uD83D\uDEE2\uFE0F Gasolina</span>");
+            if(moveState.hasBattery) items.push("<span class='text-yellow-400'>\uD83D\uDD0B Bateria</span>");
+            if(moveState.hasGun) items.push("<span class='text-yellow-300'>\uD83D\uDD2B Espingarda [" + moveState.gunAmmo + " tiros] - CLIQUE p/ Atirar</span>");
             invList.innerHTML = items.length ? items.join('<br>') : "Vazio";
+            const gunHud = document.getElementById('gun-hud');
+            const gunAmmoEl = document.getElementById('gun-ammo');
+            if (moveState.hasGun) { gunHud.style.display = 'block'; gunAmmoEl.innerText = moveState.gunAmmo; }
+            else { gunHud.style.display = 'none'; }
         }
 
         function showMessage(text) {
             msgBox.innerText = text; msgBox.style.opacity = 1;
             if (window.msgTimeout) clearTimeout(window.msgTimeout);
             window.msgTimeout = setTimeout(() => { msgBox.style.opacity = 0; }, 3500);
+        }
+
+        // ====== SISTEMA DA ARMA ======
+        let fpGunGroup = null;
+        let muzzleFlashTimer = 0;
+
+        function createFPGun() {
+            fpGunGroup = new THREE.Group();
+            // Corpo da espingarda
+            const stockMat = new THREE.MeshStandardMaterial({color: 0x3a1a05, roughness: 0.9});
+            const metalMat = new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8, roughness: 0.3});
+            // Coronha (madeira)
+            const stock = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.35), stockMat);
+            stock.position.set(0, 0, 0.1);
+            fpGunGroup.add(stock);
+            // Caño (metal)
+            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.55, 7), metalMat);
+            barrel.rotation.x = Math.PI / 2;
+            barrel.position.set(0, 0.02, -0.22);
+            fpGunGroup.add(barrel);
+            // Bomba (pump)
+            const pump = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.18, 7), stockMat);
+            pump.rotation.x = Math.PI / 2;
+            pump.position.set(0, 0.02, -0.05);
+            fpGunGroup.add(pump);
+            // Gatilho
+            const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.04, 0.015), metalMat);
+            trigger.position.set(0, -0.02, 0.02);
+            fpGunGroup.add(trigger);
+            // Flash de boca
+            const muzzleFlashMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(0.04, 6, 6),
+                new THREE.MeshBasicMaterial({color: 0xffaa00, visible: false})
+            );
+            muzzleFlashMesh.name = 'muzzle_flash';
+            muzzleFlashMesh.position.set(0, 0.02, -0.5);
+            fpGunGroup.add(muzzleFlashMesh);
+
+            fpGunGroup.position.set(0.28, -0.32, -0.45);
+            fpGunGroup.rotation.y = 0.05;
+            fpGunGroup.visible = false;
+            cameraPitch.add(fpGunGroup);
+        }
+
+        function shootGun() {
+            if (!moveState.hasGun || moveState.gunAmmo <= 0 || moveState.dead ||
+                moveState.phase === 'driving' || moveState.yasminDead) return;
+            moveState.gunAmmo--;
+            updateInventory();
+
+            // Muzzle flash
+            const mf = fpGunGroup ? fpGunGroup.getObjectByName('muzzle_flash') : null;
+            if (mf) { mf.material.visible = true; muzzleFlashTimer = 0.08; }
+
+            // Recuo da arma
+            if (fpGunGroup) {
+                fpGunGroup.position.z = -0.35;
+                setTimeout(() => { if (fpGunGroup) fpGunGroup.position.z = -0.45; }, 120);
+            }
+
+            // Raycast para Yasmin
+            const camPos = new THREE.Vector3();
+            camera.getWorldPosition(camPos);
+            const camDir = new THREE.Vector3();
+            camera.getWorldDirection(camDir);
+
+            const toYasmin = new THREE.Vector3().subVectors(yasmin.position.clone().setY(camPos.y + 1.5), camPos);
+            const dist = toYasmin.length();
+            toYasmin.normalize();
+            const dot = camDir.dot(toYasmin);
+
+            if (dot > 0.85 && dist < 30 && yasmin.visible) {
+                triggerYasminKillCutscene();
+            } else if (moveState.gunAmmo <= 0) {
+                showMessage("Sem munição! A espingarda está vazia.");
+            } else {
+                showMessage("BANG! Errou. " + moveState.gunAmmo + " tiro(s) restante(s).");
+            }
+        }
+
+        function triggerYasminKillCutscene() {
+            if (moveState.yasminDead) return;
+            moveState.yasminDead = true;
+            moveState.phase = 'fernando_cutscene'; // bloqueia IA
+            yasmin.visible = false;
+            if (yasminImg) yasminImg.style.display = 'none';
+            document.exitPointerLock();
+
+            // Flash vermelho de impacto
+            bloodOverlay.style.background = 'rgba(255,0,0,0.8)';
+            bloodOverlay.style.display = 'block';
+            setTimeout(() => { bloodOverlay.style.display = 'none'; }, 400);
+
+            // Mostra cutscene Minecraft após 600ms
+            setTimeout(() => {
+                const mc = document.getElementById('mc-cutscene');
+                mc.style.display = 'block';
+
+                // Adiciona árvores ao background da cutscene
+                for (let t = 0; t < 12; t++) {
+                    const treeEl = document.createElement('div');
+                    treeEl.style.cssText = `position:absolute;bottom:45%;left:${5+t*8}%;width:${24+Math.random()*16}px;height:${60+Math.random()*80}px;background:#0a1a0a;`;
+                    const topEl = document.createElement('div');
+                    const ts = 40 + Math.random() * 30;
+                    topEl.style.cssText = `position:absolute;bottom:100%;left:50%;transform:translateX(-50%);width:${ts*1.4}px;height:${ts}px;background:#0d2a0d;clip-path:polygon(50% 0%,100% 100%,0% 100%);`;
+                    treeEl.appendChild(topEl);
+                    mc.appendChild(treeEl);
+                }
+
+                // Após 7s (fuga + sumir), mostra tela de final secreto
+                setTimeout(() => {
+                    mc.style.display = 'none';
+                    instructions.style.display = 'flex';
+                    instructions.innerHTML = `
+                        <h1 class="text-7xl mb-4 font-bold text-red-500" style="font-family:'Creepster',cursive;text-shadow:0 0 20px #ff0000">FINAL SECRETO</h1>
+                        <p class="text-white text-2xl">🔫 Você eliminou a Yasmin!</p>
+                        <p class="text-green-400 text-xl mt-3">A floresta está em paz... por enquanto.</p>
+                        <p class="text-yellow-400 text-3xl font-bold mt-4 animate-pulse">⚡ CAADOR DE MONSTROS ⚡</p>
+                        <button class="mt-8 px-8 py-3 bg-red-900 text-white font-bold rounded hover:bg-red-700" onclick="location.reload()">JOGAR NOVAMENTE</button>
+                    `;
+                }, 7500);
+            }, 600);
         }
 
         async function askGemini(promptText) {
@@ -353,7 +634,8 @@
         mirrorCloseBtn.addEventListener('click', () => { mirrorUI.classList.add('hidden'); moveState.interactingWithMirror = false; document.body.requestPointerLock(); });
 
 
-        window.onload = init;
+        // Inicia o jogo imediatamente após o carregamento do script
+        setTimeout(init, 0); 
 
         function init() {
             scene = new THREE.Scene();
@@ -488,37 +770,161 @@
             createFullBody();
             createItemsAndLore();
             createFurniture(); 
+            createBarn();
+            createFPGun();
             createYasmin();
             createAtmosphere(); // Partículas de poeira/cinzas
 
             yasminAI.target.copy(yasminAI.waypoints[0]); 
 
             document.addEventListener('mousemove', handleRotation);
-            document.addEventListener('mousedown', (e) => { if(isLocked) handleInteraction(); });
+            document.addEventListener('mousedown', (e) => {
+                if (!isLocked) return;
+                if (moveState.hasGun && moveState.standing && !moveState.dead &&
+                    moveState.phase !== 'escape_cutscene' && moveState.phase !== 'driving' &&
+                    !moveState.interactingWithMirror && !moveState.readingNote && !moveState.hidden) {
+                    shootGun();
+                } else {
+                    handleInteraction();
+                }
+            });
             document.addEventListener('keydown', onKeyDown);
             document.addEventListener('keyup', onKeyUp);
             
             let lockCooldown = false;
-            instructions.addEventListener('click', () => {
-                if(!moveState.dead && !lockCooldown && moveState.phase !== 'win' && moveState.phase !== 'fernando_cutscene' && !moveState.interactingWithMirror && !moveState.readingNote) {
+            const startGame = () => {
+                if(moveState.dead || moveState.phase === 'win' || moveState.phase === 'fernando_cutscene' || moveState.interactingWithMirror || moveState.readingNote) return;
+                
+                instructions.style.display = 'none';
+                isLocked = true;
+
+                if (!isMobile && !lockCooldown) {
                     const promise = document.body.requestPointerLock();
                     if (promise !== undefined) {
                         promise.catch(() => {
                             lockCooldown = true;
-                            const pulse = instructions.querySelector('.animate-pulse');
-                            if(pulse) pulse.innerText = "AGUARDE UM MOMENTO...";
-                            setTimeout(() => { lockCooldown = false; if(pulse) pulse.innerText = "CLIQUE PARA JOGAR"; }, 1500);
+                            setTimeout(() => { lockCooldown = false; }, 1500);
                         });
                     }
                 }
+                
+            };
+
+            // Fallback global para iniciar o jogo se o clique nas instruções falhar
+            document.body.addEventListener('mousedown', () => {
+                if (instructions.style.display !== 'none') startGame();
             });
 
-            document.addEventListener('pointerlockchange', () => {
-                isLocked = document.pointerLockElement === document.body;
-                if (!moveState.dead && moveState.phase !== 'escape_cutscene' && moveState.phase !== 'win' && moveState.phase !== 'fernando_cutscene' && !moveState.interactingWithMirror && !moveState.readingNote) {
-                    instructions.style.display = isLocked ? 'none' : 'flex';
+            instructions.addEventListener('click', startGame);
+            instructions.addEventListener('mousedown', startGame);
+            if (isMobile) instructions.addEventListener('touchstart', (e) => { e.preventDefault(); startGame(); });
+
+            const onPointerLockChange = () => {
+                const locked = document.pointerLockElement === document.body;
+                if (!isMobile) {
+                    isLocked = locked;
+                    if (!isLocked && !moveState.dead && moveState.phase !== 'win' && !moveState.interactingWithMirror && !moveState.readingNote) {
+                        instructions.style.display = 'flex';
+                    }
+                }
+            };
+            document.addEventListener('pointerlockchange', onPointerLockChange);
+            document.addEventListener('pointerlockerror', () => {
+                if (!isMobile) {
+                    isLocked = false;
+                    // Não reexibe as instruções aqui para evitar "travar" na tela inicial se o lock falhar
+                    lockCooldown = true;
+                    setTimeout(() => { lockCooldown = false; }, 1500);
                 }
             });
+            // --- LÓGICA MOBILE: EVENTOS DE TOQUE ---
+            if (isMobile) {
+                const joyContainer = document.getElementById('joystick-container');
+                const joyStick = document.getElementById('joystick-stick');
+
+                // Joystick
+                joyContainer.addEventListener('touchstart', (e) => {
+                    mobileState.joystick.active = true;
+                    const touch = e.touches[0];
+                    mobileState.joystick.startX = touch.clientX;
+                    mobileState.joystick.startY = touch.clientY;
+                }, {passive: false});
+
+                // Rotação e Tap via toque (lado direito da tela)
+                document.addEventListener('touchstart', (e) => {
+                    const touch = Array.from(e.touches).find(t => t.clientX > window.innerWidth / 2 && !joyContainer.contains(t.target));
+                    if (touch) {
+                        mobileState.rotation.active = true;
+                        mobileState.rotation.startX = touch.clientX;
+                        mobileState.rotation.startY = touch.clientY;
+                        mobileState.rotation.lastX = touch.clientX;
+                        mobileState.rotation.lastY = touch.clientY;
+                        mobileState.rotation.moved = false;
+                    }
+                }, {passive: false});
+
+                document.addEventListener('touchmove', (e) => {
+                    if (mobileState.joystick.active) {
+                        const touch = Array.from(e.touches).find(t => t.target === joyContainer || joyContainer.contains(t.target));
+                        if (touch) {
+                            let dx = touch.clientX - mobileState.joystick.startX;
+                            let dy = touch.clientY - mobileState.joystick.startY;
+                            const dist = Math.min(50, Math.sqrt(dx*dx + dy*dy));
+                            const angle = Math.atan2(dy, dx);
+                            dx = Math.cos(angle) * dist;
+                            dy = Math.sin(angle) * dist;
+                            joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+                            mobileState.joystick.x = dx / 50;
+                            mobileState.joystick.y = dy / 50;
+                        }
+                    }
+                    
+                    if (mobileState.rotation.active) {
+                        const rotTouch = Array.from(e.touches).find(t => t.clientX > window.innerWidth / 2 && !joyContainer.contains(t.target));
+                        if (rotTouch) {
+                            const dx = rotTouch.clientX - mobileState.rotation.lastX;
+                            const dy = rotTouch.clientY - mobileState.rotation.lastY;
+                            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) mobileState.rotation.moved = true;
+                            handleRotation({ movementX: dx * 2, movementY: dy * 2 }); 
+                            mobileState.rotation.lastX = rotTouch.clientX;
+                            mobileState.rotation.lastY = rotTouch.clientY;
+                        }
+                    }
+                }, {passive: false});
+
+                document.addEventListener('touchend', (e) => {
+                    if (mobileState.rotation.active && !mobileState.rotation.moved) {
+                        // TAP DETECTED!
+                        const screenX = (mobileState.rotation.startX / window.innerWidth) * 2 - 1;
+                        const screenY = -(mobileState.rotation.startY / window.innerHeight) * 2 + 1;
+                        handleInteraction(new THREE.Vector2(screenX, screenY));
+                    }
+                    
+                    mobileState.joystick.active = false;
+                    mobileState.joystick.x = 0;
+                    mobileState.joystick.y = 0;
+                    joyStick.style.transform = 'translate(0, 0)';
+                    mobileState.rotation.active = false;
+                });
+
+                // Botões Mobile
+                document.getElementById('btn-jump').addEventListener('touchstart', (e) => { e.preventDefault(); handleJumpAction(); });
+                document.getElementById('btn-dash').addEventListener('touchstart', (e) => { e.preventDefault(); keys.q = true; setTimeout(() => keys.q = false, 100); });
+                document.getElementById('btn-light').addEventListener('touchstart', (e) => { e.preventDefault(); toggleFlashlight(); });
+                document.getElementById('btn-interact-mobile').addEventListener('touchstart', (e) => { 
+                    e.preventDefault();
+                    if (moveState.hasGun) shootGun();
+                    else handleInteraction(); 
+                });
+
+                // Fechar notas via toque
+                noteUI.addEventListener('touchstart', (e) => {
+                    if (moveState.readingNote) {
+                        noteUI.classList.add("hidden");
+                        moveState.readingNote = false;
+                    }
+                });
+            }
 
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
@@ -625,7 +1031,35 @@
             createWindow(4, 2, 7.5, 0);
             createWindow(-4, 2, 7.5, 0);
 
-            addWall(1.5, 2, -13.75, 0.5, 4, 12.5); addWall(-1.5, 2, -13.75, 0.5, 4, 12.5);
+            // === CÔMODO: ESCRITÓRIO/BIBLIOTECA (lado direito do corredor) ===
+            addWall(1.5, 2, -13.75, 0.5, 4, 12.5); // Parede dir do corredor (original)
+            addWall(14, 2, -7.75, 0.5, 4, 15.5);   // Parede ext direita do escritório
+            addWall(7.75, 2, -15, 12.5, 4, 0.5);   // Parede fundo escritório
+            addWall(7.75, 3.75, -7.5, 12.5, 0.5, 0.5); // Teto do escritório
+            createWindow(14, 2, -11, Math.PI/2);   // Janela lateral
+            createPainting(13.8, 2.5, -8, -Math.PI/2, "BIBLIOTECA\nSAGRADA");
+            createSign("ESCRITÓRIO", 7.5, 3, -7.8, 0);
+            // Pilares de canto (cilíndricos — menos quadrado!)
+            for(const [cx,cz] of [[1.5,-7.5],[14,-7.5],[14,-15],[1.5,-15]]) {
+                const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,4,10), new THREE.MeshStandardMaterial({color:0x0a0a0a,roughness:0.8}));
+                pillar.position.set(cx,2,cz); scene.add(pillar); walls.push(pillar);
+            }
+            addCeilingLight(7.5, 3.9, -11, 0xffeecc, 1.2, 15);
+
+            // === CÔMODO: LAVANDERIA (lado esquerdo do corredor) ===
+            addWall(-1.5, 2, -13.75, 0.5, 4, 12.5); // Parede esq do corredor (original)
+            addWall(-14, 2, -7.75, 0.5, 4, 15.5);   // Parede ext esquerda da lavanderia
+            addWall(-7.75, 2, -15, 12.5, 4, 0.5);   // Parede fundo lavanderia
+            addWall(-7.75, 3.75, -7.5, 12.5, 0.5, 0.5); // Teto da lavanderia
+            createWindow(-14, 2, -11, -Math.PI/2); // Janela lateral
+            createSign("LAVANDERIA", -7.5, 3, -7.8, 0);
+            // Pilares de canto cilíndricos
+            for(const [cx,cz] of [[-1.5,-7.5],[-14,-7.5],[-14,-15],[-1.5,-15]]) {
+                const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,4,10), new THREE.MeshStandardMaterial({color:0x0a0a0a,roughness:0.8}));
+                pillar.position.set(cx,2,cz); scene.add(pillar); walls.push(pillar);
+            }
+            addCeilingLight(-7.5, 3.9, -11, 0xaaeeff, 1.1, 15);
+
 
             addWall(6, 2, -27.5, 0.5, 4, 15); 
             addWall(-1.875, 2, -35, 8.75, 4, 0.5); 
@@ -704,27 +1138,34 @@
             const leafMatB = new THREE.MeshStandardMaterial({ color: 0x071505, roughness: 0.9 });
 
             function createTree(tx, tz, scale) {
-                const h = (12 + Math.random() * 6) * scale;
-                const trunkR = (0.45 + Math.random() * 0.25) * scale;
-                // Tronco: 5 segmentos (suficiente visualmente)
+                const h = (10 + Math.random() * 8) * scale;
+                const trunkR = (0.4 + Math.random() * 0.3) * scale;
+                // Tronco: 7 segmentos (mais orgânico, menos quadrado)
                 const trunk = new THREE.Mesh(
-                    new THREE.CylinderGeometry(trunkR * 0.5, trunkR, h, 5),
+                    new THREE.CylinderGeometry(trunkR * 0.45, trunkR, h, 7),
                     Math.random() > 0.5 ? trunkMatA : trunkMatB
                 );
                 trunk.position.set(tx, 4 + h / 2, tz);
-                trunk.castShadow = false; // Troncos não projetam sombra (economia enorme)
+                trunk.rotation.z = (Math.random() - 0.5) * 0.12; // Leve inclinação
+                trunk.rotation.x = (Math.random() - 0.5) * 0.06;
+                trunk.castShadow = false;
                 trunk.receiveShadow = false;
                 scene.add(trunk);
 
-                // Apenas 2 camadas de folhagem (era 3-5 antes)
-                for (let k = 0; k < 2; k++) {
-                    const r = (3.2 - k * 0.8) * scale;
-                    const lh = (4.0 - k * 0.6) * scale;
+                // 3 camadas de folhagem (mais volume, menos quadrado)
+                for (let k = 0; k < 3; k++) {
+                    const r = (3.5 - k * 0.9) * scale;
+                    const lh = (4.2 - k * 0.7) * scale;
                     const leaf = new THREE.Mesh(
-                        new THREE.ConeGeometry(r, lh, 4), // Apenas 4 segmentos (pirâmide) para performance máxima
-                        k === 0 ? leafMatA : leafMatB
+                        new THREE.ConeGeometry(r, lh, 6), // 6 segmentos: hexagonal, bem mais orgânico
+                        k % 2 === 0 ? leafMatA : leafMatB
                     );
-                    leaf.position.set(tx, 4 + h * 0.55 + k * (lh * 0.65), tz);
+                    leaf.position.set(
+                        tx + (Math.random()-0.5)*0.3*scale,
+                        4 + h * 0.5 + k * (lh * 0.6),
+                        tz + (Math.random()-0.5)*0.3*scale
+                    );
+                    leaf.rotation.y = Math.random() * Math.PI * 2;
                     leaf.castShadow = false;
                     leaf.receiveShadow = false;
                     scene.add(leaf);
@@ -733,20 +1174,22 @@
                 treePositions.push({x: tx, z: tz});
             }
 
-            // 100 árvores - Modo Ultra Econômico
+            // 200 árvores em área mais ampla
             let treeCount = 0;
-            for (let i = 0; i < 4000 && treeCount < 100; i++) {
-                let tx = (Math.random() - 0.5) * 180;
-                let tz = -70 - Math.random() * 400;
+            for (let i = 0; i < 8000 && treeCount < 200; i++) {
+                let tx = (Math.random() - 0.5) * 280; // Mais largo
+                let tz = -65 - Math.random() * 500;   // Mais profundo
 
-                if (Math.abs(tx) < 6 && tz > -160) continue;
-                if (Math.abs(tz + 150) < 6 && tx > 0 && tx < 60) continue;
-                if (Math.abs(tz + 150) < 6 && tx < 0 && tx > -60) continue;
-                if (Math.abs(tx) < 8 && tz <= -150 && tz > -250) continue;
-                if (Math.abs(tx) < 12 && tz <= -250) continue;
-                if (tx > 55 && tx < 85 && tz > -175 && tz < -125) continue;
+                // Regiões livres de árvore (caminhos e pontos de interesse)
+                if (Math.abs(tx) < 8 && tz > -170) continue;          // caminho de saída da casa
+                if (tx > 10 && tx < 40 && tz > -5 && tz < 20) continue; // celeiro
+                if (Math.abs(tz + 155) < 8 && tx > 0 && tx < 70) continue;  // acampamento
+                if (Math.abs(tz + 155) < 8 && tx < 0 && tx > -70) continue; // ferro-velho
+                if (Math.abs(tx) < 10 && tz <= -155 && tz > -270) continue;  // estrada
+                if (Math.abs(tx) < 14 && tz <= -270) continue;               // rodovia
+                if (tx > 55 && tx < 90 && tz > -180 && tz < -120) continue;  // praça
 
-                const scale = 0.7 + Math.random() * 0.6;
+                const scale = 0.65 + Math.random() * 0.7;
                 createTree(tx, tz, scale);
                 treeCount++;
             }
@@ -1023,6 +1466,148 @@
             const firePit = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.2, 8, 12), new THREE.MeshStandardMaterial({color: 0x333333}));
             firePit.rotation.x = Math.PI/2; firePit.position.set(5, 0.1, 0); campGrp.add(firePit);
             scene.add(campGrp);
+
+            // --- ESCRITÓRIO: Mesa + Estante + Cadeira ---
+            const deskMat = new THREE.MeshStandardMaterial({color: 0x2a1a0a, roughness: 0.7});
+            const deskGrp = new THREE.Group();
+            deskGrp.position.set(10, 0, -11);
+            const deskTop = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 1.2), deskMat);
+            deskTop.position.y = 1.2; deskGrp.add(deskTop);
+            for(let xl=-1; xl<=1; xl+=2) for(let zl=-1; zl<=1; zl+=2) {
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1.2,7), deskMat);
+                leg.position.set(xl*1.1, 0.6, zl*0.55); deskGrp.add(leg);
+            }
+            // Monitor (cilindro curvo + tela)
+            const monBase = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.3,0.06,10), new THREE.MeshStandardMaterial({color:0x111111}));
+            monBase.position.set(0,1.26,0); deskGrp.add(monBase);
+            const monNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.3,7), new THREE.MeshStandardMaterial({color:0x222222}));
+            monNeck.position.set(0,1.41,0); deskGrp.add(monNeck);
+            const monScreen = new THREE.Mesh(new THREE.BoxGeometry(1.2,0.7,0.06), new THREE.MeshStandardMaterial({color:0x112233,emissive:0x001122,emissiveIntensity:1}));
+            monScreen.position.set(0,1.77,0); deskGrp.add(monScreen);
+            scene.add(deskGrp);
+            // Estante de livros
+            const shelfMat = new THREE.MeshStandardMaterial({color:0x1a0d00, roughness:0.9});
+            const bookShelf = new THREE.Mesh(new THREE.BoxGeometry(2.5,3.5,0.4), shelfMat);
+            bookShelf.position.set(12, 1.75, -14.5); scene.add(bookShelf);
+            // Livros coloridos
+            const bookColors = [0x8b0000,0x00008b,0x006400,0x8b8b00,0x4b0082];
+            for(let b=0; b<15; b++) {
+                const bk = new THREE.Mesh(new THREE.BoxGeometry(0.18+Math.random()*0.1, 0.55+Math.random()*0.2, 0.28),
+                    new THREE.MeshStandardMaterial({color:bookColors[b%5],roughness:0.8}));
+                bk.position.set(12 - 0.9 + (b%6)*0.32, 0.6 + Math.floor(b/6)*0.8 + Math.random()*0.05, -14.5);
+                scene.add(bk);
+            }
+
+            // --- LAVANDERIA: Máquina de Lavar + Tanque ---
+            const appMat = new THREE.MeshStandardMaterial({color:0xdddddd, roughness:0.4, metalness:0.1});
+            // Máquina de lavar
+            const washer = new THREE.Mesh(new THREE.BoxGeometry(0.9,1.1,0.7), appMat);
+            washer.position.set(-9, 0.55, -11); scene.add(washer);
+            // Portinhola circular
+            const door = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.05,16), new THREE.MeshStandardMaterial({color:0xaabbff,transparent:true,opacity:0.5,metalness:0.3}));
+            door.rotation.x = Math.PI/2; door.position.set(-9,0.6,-10.63); scene.add(door);
+            const doorRing = new THREE.Mesh(new THREE.TorusGeometry(0.32,0.04,8,20), new THREE.MeshStandardMaterial({color:0x888888,metalness:0.7}));
+            doorRing.rotation.x = Math.PI/2; doorRing.position.set(-9,0.6,-10.62); scene.add(doorRing);
+            // Tanque
+            const tank = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.85,0.7), new THREE.MeshStandardMaterial({color:0xcccccc,roughness:0.3}));
+            tank.position.set(-11, 0.42, -11); scene.add(tank);
+            const tankInner = new THREE.Mesh(new THREE.BoxGeometry(0.65,0.3,0.55), new THREE.MeshStandardMaterial({color:0x88aabb,transparent:true,opacity:0.4}));
+            tankInner.position.set(-11,0.72,-11); scene.add(tankInner);
+            // Torneira
+            const faucet = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.25,7), new THREE.MeshStandardMaterial({color:0xaaaaaa,metalness:0.9}));
+            faucet.position.set(-11,0.98,-10.65); scene.add(faucet);
+        }
+
+        // === CELEIRO (BARN) - do lado de fora da casa ===
+        function createBarn() {
+            const barnX = 22, barnZ = 8;
+            const barnMat = new THREE.MeshStandardMaterial({color: 0x5a1a00, roughness: 0.9});
+            const barnRoofMat = new THREE.MeshStandardMaterial({color: 0x3a0d00, roughness: 0.95});
+            const barnDarkMat = new THREE.MeshStandardMaterial({color: 0x2a0800, roughness: 1.0});
+
+            // Chão do celeiro
+            const barnFloor = new THREE.Mesh(new THREE.BoxGeometry(14, 0.3, 12), new THREE.MeshStandardMaterial({color: 0x3a2010, roughness: 1.0}));
+            barnFloor.position.set(barnX, -0.15, barnZ); scene.add(barnFloor);
+
+            // Paredes laterais (painéis verticais para dar textura)
+            for (let p = 0; p < 5; p++) {
+                const plank = new THREE.Mesh(new THREE.BoxGeometry(0.15, 4.5, 12.2), barnMat);
+                plank.position.set(barnX - 6 + p * 3, 2.2, barnZ); scene.add(plank);
+                walls.push(plank);
+            }
+            // Parede de fundo
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(14.3, 4.5, 0.2), barnDarkMat);
+            backWall.position.set(barnX, 2.2, barnZ - 6); scene.add(backWall); walls.push(backWall);
+            // Parede frontal (com abertura de porta)
+            const frontL = new THREE.Mesh(new THREE.BoxGeometry(4, 4.5, 0.2), barnMat);
+            frontL.position.set(barnX - 5, 2.2, barnZ + 6); scene.add(frontL); walls.push(frontL);
+            const frontR = new THREE.Mesh(new THREE.BoxGeometry(4, 4.5, 0.2), barnMat);
+            frontR.position.set(barnX + 5, 2.2, barnZ + 6); scene.add(frontR); walls.push(frontR);
+            const frontTop = new THREE.Mesh(new THREE.BoxGeometry(14.3, 1.0, 0.2), barnMat);
+            frontTop.position.set(barnX, 4, barnZ + 6); scene.add(frontTop);
+
+            // Telhado em duas águas
+            const roofL = new THREE.Mesh(new THREE.BoxGeometry(8, 0.25, 12.5), barnRoofMat);
+            roofL.rotation.z = -0.45; roofL.position.set(barnX - 2.5, 5.2, barnZ); scene.add(roofL);
+            const roofR = new THREE.Mesh(new THREE.BoxGeometry(8, 0.25, 12.5), barnRoofMat);
+            roofR.rotation.z = 0.45; roofR.position.set(barnX + 2.5, 5.2, barnZ); scene.add(roofR);
+            // Cumeeira
+            const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 12.5), barnDarkMat);
+            ridge.position.set(barnX, 6.1, barnZ); scene.add(ridge);
+
+            // Vigas internas
+            for (let b = -1; b <= 1; b++) {
+                const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4.5, 7), barnMat);
+                beam.position.set(barnX + b * 4, 2.2, barnZ); scene.add(beam);
+            }
+
+            // Luz interna do celeiro
+            const barnLight = new THREE.PointLight(0xffaa44, 2.0, 18);
+            barnLight.position.set(barnX, 4.0, barnZ); scene.add(barnLight);
+            const barnBulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6),
+                new THREE.MeshStandardMaterial({emissive: 0xffaa44, emissiveIntensity: 3, color: 0x000000}));
+            barnBulb.position.set(barnX, 4.2, barnZ); scene.add(barnBulb);
+
+            // Feno (palha) empilhado
+            const hayMat = new THREE.MeshStandardMaterial({color: 0xc8a020, roughness: 1.0});
+            for (let h = 0; h < 4; h++) {
+                const hay = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.9, 1.5), hayMat);
+                hay.position.set(barnX - 4 + (h % 2) * 1.6, 0.45 + Math.floor(h / 2) * 0.9, barnZ - 4);
+                scene.add(hay);
+            }
+
+            // Placa do celeiro
+            createSign("CELEIRO", barnX, 5.5, barnZ + 6.3, 0);
+
+            // === ESPINGARDA NO CELEIRO ===
+            const shotgunGrp = new THREE.Group();
+            shotgunGrp.position.set(barnX - 3, 1.4, barnZ - 2);
+            shotgunGrp.rotation.y = Math.PI / 4;
+            const sgWoodMat = new THREE.MeshStandardMaterial({color: 0x4a2005, roughness: 0.9});
+            const sgMetMat  = new THREE.MeshStandardMaterial({color: 0x333333, metalness: 0.9, roughness: 0.2});
+            // Coronha
+            const sgStock = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.14, 0.55), sgWoodMat);
+            sgStock.position.set(0, 0, 0.2); shotgunGrp.add(sgStock);
+            // Cano
+            const sgBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.9, 8), sgMetMat);
+            sgBarrel.rotation.x = Math.PI / 2; sgBarrel.position.set(0, 0.025, -0.3); shotgunGrp.add(sgBarrel);
+            // Apoio numa prateleira improvisada
+            const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.8, 0.06), sgWoodMat);
+            shelf.position.set(0, -0.7, 0); shotgunGrp.add(shelf);
+            scene.add(shotgunGrp);
+
+            // Luz que destaca a espingarda
+            const gunSpotLight = new THREE.PointLight(0xffffaa, 1.5, 6);
+            gunSpotLight.position.set(barnX - 3, 2.5, barnZ - 2); scene.add(gunSpotLight);
+
+            // Hitbox da espingarda (interagível)
+            const sgHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.2), new THREE.MeshBasicMaterial({visible: false}));
+            sgHitbox.position.set(barnX - 3, 1.4, barnZ - 2);
+            sgHitbox.rotation.y = Math.PI / 4;
+            sgHitbox.name = "shotgun";
+            scene.add(sgHitbox); interactables.push(sgHitbox);
+            floatingItems.push(sgHitbox);
+            sgHitbox.userData.startY = 1.4;
         }
 
         function createFullBody() {
@@ -1090,8 +1675,60 @@
             const flashGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.25, 12); flashGeo.rotateX(Math.PI / 2);
             createItemObject(flashGeo, new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.5 }), -2.5, 0.5, -2.2, "flashlight");
 
-            createItemObject(new THREE.BoxGeometry(0.4, 0.6, 0.3), new THREE.MeshStandardMaterial({ color: 0xff2200, roughness: 0.7 }), 48, 4.3, -152, "gas_can");
-            createItemObject(new THREE.BoxGeometry(0.5, 0.4, 0.3), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.3 }), -48, 4.2, -148, "car_battery");
+            // === GALÃO DE GASOLINA DETALHADO ===
+            const gasGrp = new THREE.Group();
+            const gasMat = new THREE.MeshStandardMaterial({color: 0xcc3300, metalness: 0.4, roughness: 0.5});
+            const gasMetMat = new THREE.MeshStandardMaterial({color: 0x555555, metalness: 0.7, roughness: 0.3});
+            const gasBody = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.45, 10), gasMat);
+            gasBody.position.y = 0;
+            gasGrp.add(gasBody);
+            const gasCap = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.08, 8), gasMetMat);
+            gasCap.position.set(0.06, 0.26, 0);
+            gasGrp.add(gasCap);
+            const gasNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.18, 7), gasMetMat);
+            gasNozzle.rotation.z = Math.PI / 3; gasNozzle.position.set(0.11, 0.35, 0);
+            gasGrp.add(gasNozzle);
+            const gasHandle = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.015, 6, 12, Math.PI), gasMat);
+            gasHandle.rotation.z = Math.PI / 2; gasHandle.position.set(0, 0.28, 0);
+            gasGrp.add(gasHandle);
+            gasGrp.position.set(48, 4.45, -152);
+            gasGrp.userData.startY = 4.45;
+            gasGrp.name = "gas_can";
+            scene.add(gasGrp);
+            // Add a invisible hitbox for interaction
+            const gasHit = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.6, 8), new THREE.MeshBasicMaterial({visible:false}));
+            gasHit.position.set(48, 4.45, -152); gasHit.name = "gas_can";
+            scene.add(gasHit); interactables.push(gasHit); floatingItems.push(gasHit);
+            gasHit.userData.startY = 4.45;
+
+            // === BATERIA DO CARRO DETALHADA ===
+            const batGrp = new THREE.Group();
+            const batMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.6, metalness: 0.2});
+            const batAccMat = new THREE.MeshStandardMaterial({color: 0xdddd00, metalness: 0.7, roughness: 0.2});
+            const batBody = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.32, 0.32), batMat);
+            batGrp.add(batBody);
+            const batTop = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.04, 0.34), new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.7}));
+            batTop.position.y = 0.18; batGrp.add(batTop);
+            // Terminais + e -
+            const termPlus = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.07, 8), batAccMat);
+            termPlus.position.set(-0.14, 0.22, 0); batGrp.add(termPlus);
+            const termMinus = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.07, 8), new THREE.MeshStandardMaterial({color: 0x888888, metalness: 0.6}));
+            termMinus.position.set(0.14, 0.22, 0); batGrp.add(termMinus);
+            // Labels
+            const labelGeo = new THREE.PlaneGeometry(0.3, 0.18);
+            const labelCan = document.createElement('canvas'); labelCan.width=128; labelCan.height=64;
+            const lctx = labelCan.getContext('2d');
+            lctx.fillStyle='#ffdd00'; lctx.fillRect(0,0,128,64);
+            lctx.fillStyle='#000'; lctx.font='bold 22px Arial'; lctx.textAlign='center'; lctx.textBaseline='middle';
+            lctx.fillText('12V BATTERY',64,32);
+            const labelMesh = new THREE.Mesh(labelGeo, new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(labelCan)}));
+            labelMesh.position.set(0, 0, 0.162); batGrp.add(labelMesh);
+            batGrp.position.set(-48, 4.35, -148);
+            scene.add(batGrp);
+            const batHit = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.45, 0.45), new THREE.MeshBasicMaterial({visible:false}));
+            batHit.position.set(-48, 4.35, -148); batHit.name = "car_battery";
+            scene.add(batHit); interactables.push(batHit); floatingItems.push(batHit);
+            batHit.userData.startY = 4.35;
 
             const noteGeo = new THREE.PlaneGeometry(0.4, 0.5); noteGeo.rotateX(-Math.PI/2);
             const noteMat = new THREE.MeshStandardMaterial({color: 0xffffe0, side: THREE.DoubleSide, roughness: 0.9});
@@ -1360,9 +1997,32 @@
 
         function handleRotation(e) {
             if (!isLocked || moveState.dead || moveState.phase === 'escape_cutscene' || moveState.phase === 'fernando_cutscene' || moveState.phase === 'driving' || moveState.interactingWithMirror || moveState.readingNote || moveState.hidden) return;
-            const sensitivity = 0.003; // Aumentado para compensar FPS menor e dar mais agilidade
+            const sensitivity = isMobile ? 0.005 : 0.003; 
             playerGroup.rotation.y -= e.movementX * sensitivity;
             cameraPitch.rotation.x = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, cameraPitch.rotation.x - e.movementY * sensitivity));
+        }
+
+        function toggleFlashlight() {
+            if (!moveState.hasFlashlight || moveState.hidden || moveState.readingNote || moveState.dead) return;
+            moveState.flashlightOn = !moveState.flashlightOn;
+            flashlightLight.visible = moveState.flashlightOn;
+            if(!moveState.thirdPerson && fpFlashlightGroup) fpFlashlightGroup.visible = moveState.flashlightOn;
+        }
+
+        function handleJumpAction() {
+            if (moveState.dead || moveState.hidden || moveState.readingNote) return;
+            if(!moveState.standing) {
+                if(moveState.tied) {
+                    showMessage("Você precisa se debater nas cordas primeiro!"); return;
+                }
+                moveState.standing = true;
+                cameraPitch.position.set(0, 1.6, 0);
+                bodyParts.torso.position.set(0, 1.0, 0); bodyParts.head.position.set(0, 1.6, 0);
+                Object.values(bodyParts).forEach(p => { if(p.position.y < 1) p.position.y = 0.8; }); 
+                showMessage("Você se levantou. Explore!");
+            } else if(canJump) {
+                velocity.y = 8.0; canJump = false;
+            }
         }
 
         function onKeyDown(e) {
@@ -1410,27 +2070,10 @@
             }
 
             if(e.code === "Space" && moveState.phase === 'house' && !moveState.hidden && !moveState.readingNote) {
-                if(!moveState.standing) {
-                    if(moveState.tied) {
-                        showMessage("Você precisa se debater nas cordas (olhe para elas e clique) primeiro!"); return;
-                    }
-                    moveState.standing = true;
-                    cameraPitch.position.set(0, 1.6, 0);
-                    bodyParts.torso.position.set(0, 1.0, 0); bodyParts.head.position.set(0, 1.6, 0);
-                    bodyParts.legL.rotation.x = 0; bodyParts.legL.position.set(-0.15, 0.8, 0); 
-                    bodyParts.legR.rotation.x = 0; bodyParts.legR.position.set(0.15, 0.8, 0); 
-                    bodyParts.armL.rotation.x = 0; bodyParts.armL.position.set(-0.25, 1.1, 0); 
-                    bodyParts.armR.rotation.x = 0; bodyParts.armR.position.set(0.25, 1.1, 0); 
-                    showMessage("Você se levantou. Use WASD para explorar.");
-                } else if(canJump) {
-                    velocity.y = 8.0; 
-                    canJump = false;
-                }
+                handleJumpAction();
             }
             if(e.code === "KeyL" && moveState.hasFlashlight && !moveState.hidden && !moveState.readingNote) {
-                moveState.flashlightOn = !moveState.flashlightOn;
-                flashlightLight.visible = moveState.flashlightOn;
-                if(!moveState.thirdPerson) fpFlashlightGroup.visible = moveState.flashlightOn;
+                toggleFlashlight();
             }
             if(e.code === "KeyV" && moveState.phase !== 'driving' && !moveState.hidden && !moveState.readingNote) {
                 moveState.thirdPerson = !moveState.thirdPerson;
@@ -1496,12 +2139,26 @@
 
             if (target.name === "gas_can" && moveState.standing) {
                 moveState.hasGas = true; target.visible = false;
-                showMessage("Você pegou a Gasolina!"); updateInventory();
+                // Esconde o grupo visual da gasolina também
+                scene.traverse(o => { if (o.name === 'gas_can' && o.isGroup) o.visible = false; });
+                showMessage("Você pegou o Galão de Gasolina!"); updateInventory();
             }
 
             if (target.name === "car_battery" && moveState.standing) {
                 moveState.hasBattery = true; target.visible = false;
+                scene.traverse(o => { if (o.name === 'car_battery' && o.isGroup) o.visible = false; });
                 showMessage("Você pegou a Bateria do Carro!"); updateInventory();
+            }
+
+            if (target.name === "shotgun" && moveState.standing && !moveState.hasGun) {
+                moveState.hasGun = true;
+                target.visible = false;
+                // Esconde a arma visual no mundo
+                scene.traverse(o => { if (o.name === 'shotgun_world') o.visible = false; });
+                // Mostra a arma em 1ª pessoa
+                if (fpGunGroup) fpGunGroup.visible = true;
+                showMessage("🔫 Espingarda pega! Clique para atirar. Mire na Yasmin!");
+                updateInventory();
             }
 
             if (target.name === "car" && moveState.standing) {
@@ -1540,10 +2197,14 @@
             }
         }
 
-        function handleInteraction() {
+        function handleInteraction(touchPos = null) {
             if (!isLocked || moveState.dead || moveState.phase === 'escape_cutscene' || moveState.phase === 'fernando_cutscene' || moveState.phase === 'driving' || moveState.interactingWithMirror || moveState.readingNote || moveState.hidden) return;
             
-            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            if (touchPos) {
+                raycaster.setFromCamera(touchPos, camera);
+            } else {
+                raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            }
             const intersects = raycaster.intersectObjects(interactables);
 
             if (intersects.length > 0) {
@@ -1680,9 +2341,22 @@
 
         function applyColisionsLogic(px, pz, size) {
             let py = 0;
-            if (pz > -7.4) { 
-                px = Math.max(-7+size, Math.min(7-size, px)); pz = Math.min(7-size, Math.max(-7.4, pz)); 
-                if (!moveState.doors.basement && pz < -7.4 + size) pz = -7.4 + size; 
+            if (pz > -7.4) {
+                // Exterior da casa: celeiro fica em x > 9, z em [0,20]
+                if (px > 9) {
+                    // Área do celeiro e exterior direito — sem restrição apertada
+                    px = Math.max(9, Math.min(50, px));
+                    pz = Math.min(20, Math.max(-20, pz));
+                } else if (px < -9) {
+                    // Exterior esquerdo
+                    px = Math.max(-50, Math.min(-9, px));
+                    pz = Math.min(20, Math.max(-20, pz));
+                } else {
+                    // Dentro do porão (interior da casa)
+                    px = Math.max(-9+size, Math.min(9-size, px));
+                    pz = Math.min(7-size, Math.max(-7.4, pz));
+                    if (!moveState.doors.basement && pz < -7.4 + size) pz = -7.4 + size;
+                }
             } else if (pz > -20) { 
                 px = Math.max(-1.5+size, Math.min(1.5-size, px)); 
             } else if (pz > -35) {
@@ -1703,7 +2377,7 @@
                 if (pz > -45 - size && (px < 2.5 || px > 5.5)) pz = -45 - size;
                 if (!moveState.doors.exit && pz < -64.5 + size) pz = -64.5 + size;
             } else {
-                px = Math.max(-95+size, Math.min(95-size, px)); py = 4; pz = Math.max(-450, pz); 
+                px = Math.max(-140+size, Math.min(140-size, px)); py = 4; pz = Math.max(-550, pz); 
             }
             return {x: px, y: py, z: pz};
         }
@@ -1870,10 +2544,11 @@
                 renderer.render(scene, camera); return; 
             }
 
-            if (isLocked && !moveState.dead && !moveState.hidden && moveState.phase === 'house') {
+            if (isLocked && !moveState.dead && !moveState.hidden &&
+                (moveState.phase === 'house' || moveState.phase === 'forest')) {
                 raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
                 const intersects = raycaster.intersectObjects(interactables);
-                if (intersects.length > 0 && intersects[0].distance < 3.5) {
+                if (intersects.length > 0 && intersects[0].distance < 4.5) {
                     currentInteractable = intersects[0].object;
                     let n = currentInteractable.name;
                     
@@ -1886,6 +2561,9 @@
                         if(n.startsWith("hide_")) interactText.innerText = "Esconder-se";
                         else if(n.startsWith("door_")) interactText.innerText = "Abrir Porta";
                         else if(n.startsWith("note_")) interactText.innerText = "Ler Nota";
+                        else if(n === "shotgun") interactText.innerText = "🔫 Pegar Espingarda";
+                        else if(n === "gas_can") interactText.innerText = "🛢️ Pegar Gasolina";
+                        else if(n === "car_battery") interactText.innerText = "🔋 Pegar Bateria";
                         else interactText.innerText = "Pegar Item";
                     } else {
                         currentInteractable = null; interactPrompt.style.display = 'none'; crosshair.classList.remove('active');
@@ -1922,11 +2600,18 @@
                 velocity.z -= velocity.z * 10.0 * delta;
                 velocity.y -= 25.0 * delta; 
 
-                direction.z = Number(keys.w) - Number(keys.s); direction.x = Number(keys.d) - Number(keys.a); direction.normalize();
+                if (isMobile && mobileState.joystick.active) {
+                    direction.z = -mobileState.joystick.y;
+                    direction.x = mobileState.joystick.x;
+                } else {
+                    direction.z = Number(keys.w) - Number(keys.s); 
+                    direction.x = Number(keys.d) - Number(keys.a);
+                }
+                direction.normalize();
 
-                let baseSpeed = keys.shift ? 90.0 : 55.0; 
+                let baseSpeed = (keys.shift || (isMobile && mobileState.joystick.active && Math.sqrt(mobileState.joystick.x**2 + mobileState.joystick.y**2) > 0.8)) ? 90.0 : 55.0; 
 
-                if (keys.q && canDash && (keys.w || keys.s || keys.a || keys.d)) {
+                if (keys.q && canDash && (keys.w || keys.s || keys.a || keys.d || (isMobile && mobileState.joystick.active))) {
                     isDashing = true; dashTime = 0.2; canDash = false;
                     setTimeout(() => canDash = true, 2000); 
                 }
@@ -1935,8 +2620,14 @@
                     if (dashTime <= 0) isDashing = false;
                 }
 
-                if (keys.w || keys.s) velocity.z -= direction.z * baseSpeed * delta;
-                if (keys.a || keys.d) velocity.x += direction.x * baseSpeed * delta;
+                if (keys.w || keys.s || (isMobile && mobileState.joystick.active)) {
+                    const speedZ = isMobile && mobileState.joystick.active ? -mobileState.joystick.y : direction.z;
+                    velocity.z -= speedZ * baseSpeed * delta;
+                }
+                if (keys.a || keys.d || (isMobile && mobileState.joystick.active)) {
+                    const speedX = isMobile && mobileState.joystick.active ? mobileState.joystick.x : direction.x;
+                    velocity.x += speedX * baseSpeed * delta;
+                }
 
                 playerGroup.translateX(velocity.x * delta); playerGroup.translateZ(velocity.z * delta);
                 let newPPos = applyColisionsLogic(playerGroup.position.x, playerGroup.position.z, 0.3);
@@ -1951,7 +2642,7 @@
                     canJump = false;
                 }
 
-                isMoving = (keys.w || keys.s || keys.a || keys.d);
+                isMoving = (keys.w || keys.s || keys.a || keys.d || (isMobile && mobileState.joystick.active && (Math.abs(mobileState.joystick.x) > 0.1 || Math.abs(mobileState.joystick.y) > 0.1)));
                 if (isMoving) {
                     let animSpeed = keys.shift ? 15 : 10;
                     if (isDashing) animSpeed = 25;
@@ -1985,10 +2676,19 @@
 
             if (isLocked && moveState.phase === 'driving' && !moveState.dead) {
                 let carSpeed = 0;
-                if(keys.w) { carSpeed = 40 * delta; isMoving = true; }
-                if(keys.s) { carSpeed = -15 * delta; isMoving = true; }
-                if(keys.a || keys.d) isMoving = true;                
-                if(keys.a) carGroup.rotation.y += 1.5 * delta; if(keys.d) carGroup.rotation.y -= 1.5 * delta; 
+                if(keys.w || (isMobile && mobileState.joystick.active && mobileState.joystick.y < -0.2)) { 
+                    carSpeed = 40 * delta * (isMobile ? -mobileState.joystick.y : 1); isMoving = true; 
+                }
+                if(keys.s || (isMobile && mobileState.joystick.active && mobileState.joystick.y > 0.2)) { 
+                    carSpeed = -15 * delta * (isMobile ? mobileState.joystick.y : 1); isMoving = true; 
+                }
+                if(keys.a || keys.d || (isMobile && mobileState.joystick.active && Math.abs(mobileState.joystick.x) > 0.2)) isMoving = true;                
+                if(keys.a || (isMobile && mobileState.joystick.active && mobileState.joystick.x < -0.2)) {
+                    carGroup.rotation.y += 1.5 * delta * (isMobile ? -mobileState.joystick.x : 1);
+                }
+                if(keys.d || (isMobile && mobileState.joystick.active && mobileState.joystick.x > 0.2)) {
+                    carGroup.rotation.y -= 1.5 * delta * (isMobile ? mobileState.joystick.x : 1);
+                }
                 
                 let oldPos = carGroup.position.clone();
                 carGroup.translateZ(-carSpeed);
@@ -2169,6 +2869,29 @@
             if(particles) {
                 particles.rotation.y += 0.01 * delta;
                 particles.position.y = Math.sin(Date.now()*0.001)*0.5;
+            }
+
+            // === MUZZLE FLASH TIMER ===
+            if (muzzleFlashTimer > 0) {
+                muzzleFlashTimer -= delta;
+                if (muzzleFlashTimer <= 0) {
+                    const mf = fpGunGroup ? fpGunGroup.getObjectByName('muzzle_flash') : null;
+                    if (mf) mf.material.visible = false;
+                }
+            }
+
+            // === GUN BOB (balancinho da arma em 1ª pessoa) ===
+            if (fpGunGroup && fpGunGroup.visible && !moveState.thirdPerson) {
+                const t = Date.now() * 0.004;
+                if (isMoving) {
+                    fpGunGroup.position.y = -0.32 + Math.sin(t * 2) * 0.022;
+                    fpGunGroup.position.x = 0.28 + Math.cos(t) * 0.01;
+                    fpGunGroup.rotation.z = Math.sin(t) * 0.04;
+                } else {
+                    fpGunGroup.position.y += (-0.32 - fpGunGroup.position.y) * 0.1;
+                    fpGunGroup.position.x += (0.28 - fpGunGroup.position.x) * 0.1;
+                    fpGunGroup.rotation.z *= 0.85;
+                }
             }
 
             renderer.render(scene, camera);
