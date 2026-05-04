@@ -377,17 +377,18 @@
         let moveState = { 
             tied: true, standing: false,
             keys: { silver: false, red: false, blue: false },
-            doors: { basement: false, kitchen: false, exit: false },
+            doors: { basement: false, kitchen: false, exit: false, office: false, laundry: false, bathroom: false },
             hasFlashlight: false, flashlightOn: false,
             hasGas: false, hasBattery: false, inCar: false,
             hasGun: false, gunAmmo: 6, yasminDead: false,
+            hasSpecialBody: false, holdingSpecialBody: false,
             hidden: false, readingNote: false, interactingWithMirror: false, 
             ropeHealth: 100, dead: false, inJumpscare: false, thirdPerson: false,
             jumpscarePhase: 0, phase: 'house'
         };
         
         let velocity = new THREE.Vector3(); let direction = new THREE.Vector3();
-        let keys = { w: false, a: false, s: false, d: false, shift: false, q: false };
+        let keys = { w: false, a: false, s: false, d: false, shift: false, q: false, arrowleft: false, arrowright: false };
         let canJump = true; let canDash = true; let isDashing = false; let dashTime = 0;
         
         let interactables = []; let doorsMeshes = {}; let keysMeshes = {};
@@ -403,6 +404,9 @@
         
         let interactAnimActive = false;
         let interactAnimTime = 0;
+        
+        let heldBodyGroup = null; 
+        let heldBodyHead = null;
 
         let yasmin, yasminJaw, yasminTongue, yasminArmL, yasminArmR;
         let yasminWingL, yasminWingR, yasminWingL2, yasminWingR2;
@@ -637,7 +641,32 @@
         // Inicia o jogo imediatamente após o carregamento do script
         setTimeout(init, 0); 
 
+        function addCeilingLight(x, y, z, color, intensity, dist) {
+            // Bulbo brilhante emissivo
+            const bulb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.12, 6, 6), // Segmentos reduzidos
+                new THREE.MeshStandardMaterial({ emissive: color, emissiveIntensity: 3, color: 0x000000, roughness: 0 })
+            );
+            bulb.position.set(x, y, z); scene.add(bulb);
+            // Cúpula da luminária
+            const shade = new THREE.Mesh(
+                new THREE.ConeGeometry(0.35, 0.3, 7, 1, true), // Segmentos reduzidos
+                new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.6, side: THREE.BackSide})
+            );
+            shade.position.set(x, y + 0.15, z); scene.add(shade);
+            // PointLight SEM sombra
+            const lamp = new THREE.PointLight(color, intensity, dist);
+            lamp.position.set(x, y - 0.15, z);
+            lamp.castShadow = false;
+            scene.add(lamp);
+        }
+
         function init() {
+            // Limpa o estado global em caso de recarregamento dinâmico do script (hot-reload)
+            playerGroup.clear();
+            interactables = [];
+            floatingItems = [];
+
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x020305);
             scene.fog = new THREE.Fog(0x020305, 1, 35); // Neblina mais curta para poupar renderização distantes
@@ -696,27 +725,6 @@
             moonLight.position.set(5, 20, -10);
             moonLight.castShadow = false;
             scene.add(moonLight); 
-            
-            function addCeilingLight(x, y, z, color, intensity, dist) {
-                // Bulbo brilhante emissivo
-                const bulb = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.12, 6, 6), // Segmentos reduzidos
-                    new THREE.MeshStandardMaterial({ emissive: color, emissiveIntensity: 3, color: 0x000000, roughness: 0 })
-                );
-                bulb.position.set(x, y, z); scene.add(bulb);
-                // Cúpula da luminária
-                const shade = new THREE.Mesh(
-                    new THREE.ConeGeometry(0.35, 0.3, 7, 1, true), // Segmentos reduzidos
-                    new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.6, side: THREE.BackSide})
-                );
-                shade.position.set(x, y + 0.15, z); scene.add(shade);
-                // PointLight SEM sombra (sombra de ponto é muito cara — 6 render passes por luz)
-                const lamp = new THREE.PointLight(color, intensity, dist);
-                lamp.position.set(x, y - 0.15, z);
-                lamp.castShadow = false;
-                scene.add(lamp);
-            }
-
             addCeilingLight(0, 3.9, 0, 0xffddaa, 1.5, 20);      
             addCeilingLight(0, 3.9, -14, 0xaaaaff, 1.2, 20);    
             addCeilingLight(0, 3.9, -27, 0xffeebb, 1.3, 25);    
@@ -726,7 +734,8 @@
             addCeilingLight(0, 7.9, -58, 0xaaaaff, 1.4, 30);    
 
             // Lanterna: Agora sem sombras para performance máxima
-            flashlightLight = new THREE.SpotLight(0xffe8c0, 40.0, 60, Math.PI / 7, 0.45, 1.5);
+            // Lanterna: Intensidade reduzida de 40 para 12 para não "estourar" a visão
+            flashlightLight = new THREE.SpotLight(0xfff0d0, 12.0, 60, Math.PI / 7, 0.5, 2.0);
             flashlightLight.castShadow = false;
             flashlightLight.position.set(0, 0, 0); flashlightLight.target.position.set(0, 0, -1);
             flashlightLight.visible = false;
@@ -823,7 +832,7 @@
                 const locked = document.pointerLockElement === document.body;
                 if (!isMobile) {
                     isLocked = locked;
-                    if (!isLocked && !moveState.dead && moveState.phase !== 'win' && !moveState.interactingWithMirror && !moveState.readingNote) {
+                    if (!isLocked && !moveState.dead && moveState.phase !== 'win' && moveState.phase !== 'fernando_cutscene' && moveState.phase !== 'escape_cutscene' && !moveState.interactingWithMirror && !moveState.readingNote) {
                         instructions.style.display = 'flex';
                     }
                 }
@@ -1017,7 +1026,10 @@
             addWall(17.5, 2, -30, 15, 4, 0.5); // Parede fundo
             addWall(25, 2, -25, 0.5, 4, 10); // Parede lateral externa
             createWindow(25, 2, -30, Math.PI/2); // Janela do banheiro
-            addWall(17.5, 3.5, -20, 15, 1, 0.5); // Viga superior de entrada
+            // Parede frontal com buraco para porta (Vão de 3m centralizado em x=17.5)
+            addWall(13, 2, -20, 6, 4, 0.5); // Lado esquerdo da porta (x de 10 a 16)
+            addWall(22, 2, -20, 6, 4, 0.5); // Lado direito da porta (x de 19 a 25)
+            addWall(17.5, 3.5, -20, 3, 1, 0.5); // Viga superior da porta (x de 16 a 19)
             // Restante das paredes originais (mantidas e ajustadas)
             addWall(0, 3.75, -55, 30, 0.5, 20, 0x221111);
             addWall(0, 8.25, -55, 30, 0.5, 20, 0x050505);
@@ -1032,7 +1044,9 @@
             createWindow(-4, 2, 7.5, 0);
 
             // === CÔMODO: ESCRITÓRIO/BIBLIOTECA (lado direito do corredor) ===
-            addWall(1.5, 2, -13.75, 0.5, 4, 12.5); // Parede dir do corredor (original)
+            addWall(1.5, 2, -8.625, 0.5, 4, 2.25); // Parede dir do corredor (seção 1)
+            addWall(1.5, 2, -16.375, 0.5, 4, 7.25); // Parede dir do corredor (seção 2)
+            addWall(1.5, 3.5, -11.25, 0.5, 1, 3.0); // Viga superior da porta do escritório
             addWall(14, 2, -7.75, 0.5, 4, 15.5);   // Parede ext direita do escritório
             addWall(7.75, 2, -15, 12.5, 4, 0.5);   // Parede fundo escritório
             addWall(7.75, 3.75, -7.5, 12.5, 0.5, 0.5); // Teto do escritório
@@ -1047,7 +1061,9 @@
             addCeilingLight(7.5, 3.9, -11, 0xffeecc, 1.2, 15);
 
             // === CÔMODO: LAVANDERIA (lado esquerdo do corredor) ===
-            addWall(-1.5, 2, -13.75, 0.5, 4, 12.5); // Parede esq do corredor (original)
+            addWall(-1.5, 2, -8.625, 0.5, 4, 2.25); // Parede esq do corredor (seção 1)
+            addWall(-1.5, 2, -16.375, 0.5, 4, 7.25); // Parede esq do corredor (seção 2)
+            addWall(-1.5, 3.5, -11.25, 0.5, 1, 3.0); // Viga superior da porta da lavanderia
             addWall(-14, 2, -7.75, 0.5, 4, 15.5);   // Parede ext esquerda da lavanderia
             addWall(-7.75, 2, -15, 12.5, 4, 0.5);   // Parede fundo lavanderia
             addWall(-7.75, 3.75, -7.5, 12.5, 0.5, 0.5); // Teto da lavanderia
@@ -1518,9 +1534,9 @@
             faucet.position.set(-11,0.98,-10.65); scene.add(faucet);
         }
 
-        // === CELEIRO (BARN) - do lado de fora da casa ===
+        // === CELEIRO (BARN) - agora localizado na floresta perto do carro ===
         function createBarn() {
-            const barnX = 22, barnZ = 8;
+            const barnX = 40, barnZ = -280;
             const barnMat = new THREE.MeshStandardMaterial({color: 0x5a1a00, roughness: 0.9});
             const barnRoofMat = new THREE.MeshStandardMaterial({color: 0x3a0d00, roughness: 0.95});
             const barnDarkMat = new THREE.MeshStandardMaterial({color: 0x2a0800, roughness: 1.0});
@@ -1611,36 +1627,68 @@
         }
 
         function createFullBody() {
-            const skinMat = new THREE.MeshStandardMaterial({ color: 0xc4a484, roughness: 0.6 });
-            const clothesMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.8 });
-
-            bodyParts.torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), clothesMat);
-            bodyParts.torso.position.set(0, 0.8, -0.1); bodyParts.torso.visible = false;
+            const skinMat = new THREE.MeshStandardMaterial({color: 0xffccaa, roughness: 0.6});
+            const clothesMat = new THREE.MeshStandardMaterial({color: 0x3b4a59, roughness: 0.9});
+            const hairMat = new THREE.MeshStandardMaterial({color: 0x221100, roughness: 0.9});
+            const shoeMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.9});
+            
+            // Tronco mais modelado (usando um cilindro achatado para simular o corpo)
+            const torsoGeo = new THREE.CylinderGeometry(0.22, 0.18, 0.65, 8);
+            bodyParts.torso = new THREE.Mesh(torsoGeo, clothesMat);
+            bodyParts.torso.position.set(0, 0.85, -0.1);
+            // Achatar o tronco na profundidade
+            bodyParts.torso.scale.set(1, 1, 0.6);
+            bodyParts.torso.visible = false;
             playerGroup.add(bodyParts.torso);
 
-            bodyParts.head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), skinMat);
-            bodyParts.head.position.set(0, 1.25, -0.1); bodyParts.head.visible = false;
-            playerGroup.add(bodyParts.head);
-
-            const legGeo = new THREE.CylinderGeometry(0.07, 0.06, 0.8); legGeo.translate(0, -0.4, 0);
-            const footGeo = new THREE.BoxGeometry(0.12, 0.06, 0.25); footGeo.translate(0, -0.03, -0.05);
+            // Cabeça
+            bodyParts.headGroup = new THREE.Group();
+            bodyParts.headGroup.position.set(0, 1.3, -0.1);
+            bodyParts.headGroup.visible = false;
             
-            bodyParts.legL = new THREE.Mesh(legGeo, clothesMat); bodyParts.legL.position.set(-0.15, 0.6, -0.2); bodyParts.legL.rotation.x = -Math.PI / 2.5; 
-            bodyParts.footL = new THREE.Mesh(footGeo, new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.9})); bodyParts.footL.position.set(0, -0.8, 0); bodyParts.legL.add(bodyParts.footL);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), skinMat);
+            bodyParts.headGroup.add(head);
+            
+            // Cabelo
+            const hair = new THREE.Mesh(new THREE.SphereGeometry(0.145, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.8), hairMat);
+            hair.position.y = 0.02;
+            bodyParts.headGroup.add(hair);
+            
+            // Pescoço
+            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.1), skinMat);
+            neck.position.y = -0.15;
+            bodyParts.headGroup.add(neck);
+
+            playerGroup.add(bodyParts.headGroup);
+            bodyParts.head = bodyParts.headGroup; // Mantém a referência original para o resto do código
+
+            // Pernas com articulação melhor posicionada
+            const legGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.8, 8); legGeo.translate(0, -0.4, 0);
+            const footGeo = new THREE.BoxGeometry(0.11, 0.07, 0.22); footGeo.translate(0, -0.035, -0.05);
+            
+            bodyParts.legL = new THREE.Mesh(legGeo, clothesMat); 
+            bodyParts.legL.position.set(-0.12, 0.6, -0.1); bodyParts.legL.rotation.x = -Math.PI / 2.5; 
+            bodyParts.footL = new THREE.Mesh(footGeo, shoeMat); bodyParts.footL.position.set(0, -0.8, 0); bodyParts.legL.add(bodyParts.footL);
             playerGroup.add(bodyParts.legL);
 
-            bodyParts.legR = new THREE.Mesh(legGeo, clothesMat); bodyParts.legR.position.set(0.15, 0.6, -0.2); bodyParts.legR.rotation.x = -Math.PI / 2.5;
-            bodyParts.footR = new THREE.Mesh(footGeo, new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.9})); bodyParts.footR.position.set(0, -0.8, 0); bodyParts.legR.add(bodyParts.footR);
+            bodyParts.legR = new THREE.Mesh(legGeo, clothesMat); 
+            bodyParts.legR.position.set(0.12, 0.6, -0.1); bodyParts.legR.rotation.x = -Math.PI / 2.5;
+            bodyParts.footR = new THREE.Mesh(footGeo, shoeMat); bodyParts.footR.position.set(0, -0.8, 0); bodyParts.legR.add(bodyParts.footR);
             playerGroup.add(bodyParts.legR);
 
-            const armGeo = new THREE.CylinderGeometry(0.05, 0.04, 0.6); armGeo.translate(0, -0.3, 0);
-            const handGeo = new THREE.SphereGeometry(0.06, 8, 8);
+            // Braços com postura ligeiramente relaxada
+            const armGeo = new THREE.CylinderGeometry(0.045, 0.035, 0.6, 8); armGeo.translate(0, -0.3, 0);
+            const handGeo = new THREE.SphereGeometry(0.05, 8, 8);
             
-            bodyParts.armL = new THREE.Mesh(armGeo, skinMat); bodyParts.armL.position.set(-0.35, 0.9, -0.1); bodyParts.armL.rotation.x = Math.PI / 6;
+            bodyParts.armL = new THREE.Mesh(armGeo, skinMat); 
+            bodyParts.armL.position.set(-0.25, 1.1, -0.1); bodyParts.armL.rotation.x = Math.PI / 6;
+            bodyParts.armL.rotation.z = 0.1; // Braço levemente aberto
             bodyParts.handL = new THREE.Mesh(handGeo, skinMat); bodyParts.handL.position.set(0, -0.6, 0); bodyParts.armL.add(bodyParts.handL);
             playerGroup.add(bodyParts.armL);
 
-            bodyParts.armR = new THREE.Mesh(armGeo, skinMat); bodyParts.armR.position.set(0.35, 0.9, -0.1); bodyParts.armR.rotation.x = Math.PI / 6;
+            bodyParts.armR = new THREE.Mesh(armGeo, skinMat); 
+            bodyParts.armR.position.set(0.25, 1.1, -0.1); bodyParts.armR.rotation.x = Math.PI / 6;
+            bodyParts.armR.rotation.z = -0.1; // Braço levemente aberto
             bodyParts.handR = new THREE.Mesh(handGeo, skinMat); bodyParts.handR.position.set(0, -0.6, 0); bodyParts.armR.add(bodyParts.handR);
             playerGroup.add(bodyParts.armR);
         }
@@ -1739,15 +1787,20 @@
             function createDoor(name, px, py, pz, colorKnob, isZdoor=true) {
                 const group = new THREE.Group(); group.position.set(px, py, pz);
                 const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(isZdoor?3.0:0.1, 3.5, isZdoor?0.1:3.0), new THREE.MeshStandardMaterial({ color: 0x1a0d00, roughness: 0.9 }));
-                doorMesh.position.set(isZdoor?1.5:0, 1.75, isZdoor?0:1.5); doorMesh.name = name;
+                doorMesh.position.set(isZdoor?1.5:0, 1.75, isZdoor?0:1.5); 
+                doorMesh.name = name;
+                doorMesh.userData.isDoor = true; // Identificador para colisão
                 const knob = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), new THREE.MeshStandardMaterial({color: colorKnob, metalness: 0.8}));
                 knob.position.set(isZdoor?2.7:0, 1.75, isZdoor?0.1:2.7); doorMesh.add(knob);
                 group.add(doorMesh); scene.add(group); interactables.push(doorMesh);
                 return group;
             }
-            doorsMeshes.basement = createDoor("door_basement", -1.5, 0, -7.4, 0xaaaaaa);
+            doorsMeshes.basement = createDoor("door_basement", -1.5, 0, -7.5, 0xaaaaaa);
             doorsMeshes.kitchen = createDoor("door_kitchen", -5.5, 0, -27.5, 0xff0000, false);
-            doorsMeshes.exit = createDoor("door_exit", -2.5, 4, -64.5, 0x0000ff);
+            doorsMeshes.exit = createDoor("door_exit", -1.5, 4, -64.5, 0x0000ff);
+            doorsMeshes.office = createDoor("door_office", 1.5, 0, -12.75, 0xaaaaaa, false);
+            doorsMeshes.laundry = createDoor("door_laundry", -1.5, 0, -12.75, 0xaaaaaa, false);
+            doorsMeshes.bathroom = createDoor("door_bathroom", 16, 0, -20.0, 0xaaaaaa, true);
 
             // =========================================================
             // === HORROR DO PORÃO: CORPOS, OSSOS E ESCRITAS NA PAREDE ===
@@ -1795,10 +1848,104 @@
                 scene.add(grp);
             }
 
-            // 3 corpos de crianças em diferentes posições/ângulos no porão
+            // 3 corpos de crianças padrão em diferentes posições/ângulos
             createDeadChild(-2.5, -1.5,  0.4);
             createDeadChild( 3.5, -4.0,  Math.PI + 0.3);
             createDeadChild(-4.5, -5.5, -0.8);
+
+            // Muitos corpos adicionais espalhados EXCLUSIVAMENTE na sala onde nascemos (z entre -7 e 7)
+            for(let i=0; i<60; i++) {
+                const rx = (Math.random() - 0.5) * 14;
+                const rz = (Math.random() - 0.5) * 14; 
+                // Evita colocar EXATAMENTE onde o jogador começa (cadeira)
+                if (Math.abs(rx) > 1.2 || Math.abs(rz) > 1.2) {
+                    createDeadChild(rx, rz, Math.random() * Math.PI * 2);
+                }
+            }
+
+            // CORPO ESPECIAL INTERAGÍVEL (Um único corpo que dá pra pegar) - Agora na sala inicial
+            const specialBodyGrp = new THREE.Group();
+            specialBodyGrp.position.set(4, 0, 3.5); 
+            specialBodyGrp.rotation.y = -Math.PI / 4;
+            
+            const spcSkin = new THREE.MeshStandardMaterial({ color: 0x9a7a6a, roughness: 0.9, emissive: 0x110000 });
+            const spcCloth = new THREE.MeshStandardMaterial({ color: 0x331111, roughness: 0.95 });
+            
+            const spcTorso = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.45), spcCloth);
+            spcTorso.position.set(0, 0.075, 0); specialBodyGrp.add(spcTorso);
+            const spcHead = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), spcSkin);
+            spcHead.position.set(0, 0.11, -0.3); specialBodyGrp.add(spcHead);
+            // Um pequeno destaque visual de sangue extra
+            const spcBlood = new THREE.Mesh(new THREE.CircleGeometry(0.4, 12), new THREE.MeshStandardMaterial({color: 0x440000}));
+            spcBlood.rotation.x = -Math.PI / 2; spcBlood.position.y = 0.002; specialBodyGrp.add(spcBlood);
+            
+            specialBodyGrp.traverse(c => { if(c.isMesh) { c.castShadow=true; c.receiveShadow=true; } });
+            
+            // Hitbox do corpo especial
+            const spcHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.8), new THREE.MeshBasicMaterial({visible: false}));
+            spcHitbox.position.set(0, 0.25, 0); 
+            spcHitbox.name = "special_body";
+            specialBodyGrp.add(spcHitbox);
+            
+            scene.add(specialBodyGrp);
+            interactables.push(spcHitbox);
+            spcHitbox.userData.startY = 0.25;
+            spcHitbox.userData.parentGrp = specialBodyGrp;
+
+            // Prepara o grupo do corpo que o jogador segurará (mão) - Modelo Idêntico ao Player
+            heldBodyGroup = new THREE.Group();
+            heldBodyGroup.position.set(0.5, -0.7, -1.2); 
+            
+            const hbSkin = new THREE.MeshStandardMaterial({ color: 0xffccaa, roughness: 0.6 });
+            const hbClothes = new THREE.MeshStandardMaterial({ color: 0x3b4a59, roughness: 0.9 });
+            const hbShoe = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+
+            // Tronco (Cilíndrico como o do player)
+            const hbTorsoGeo = new THREE.CylinderGeometry(0.22, 0.18, 0.65, 8);
+            const hbTorso = new THREE.Mesh(hbTorsoGeo, hbClothes);
+            hbTorso.scale.set(1, 1, 0.6);
+            heldBodyGroup.add(hbTorso);
+
+            // Cabeça e Pescoço
+            const hbHeadGrp = new THREE.Group();
+            hbHeadGrp.position.y = 0.45;
+            heldBodyHead = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), hbSkin);
+            hbHeadGrp.add(heldBodyHead);
+            const hbNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.1), hbSkin);
+            hbNeck.position.y = -0.15;
+            hbHeadGrp.add(hbNeck);
+            heldBodyGroup.add(hbHeadGrp);
+
+            // Pernas e Pés
+            const hbLegGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.8, 8); hbLegGeo.translate(0, -0.4, 0);
+            const hbFootGeo = new THREE.BoxGeometry(0.11, 0.07, 0.22); hbFootGeo.translate(0, -0.035, -0.05);
+
+            bodyParts.hbLegL = new THREE.Mesh(hbLegGeo, hbClothes);
+            bodyParts.hbLegL.position.set(-0.12, -0.2, 0);
+            const hbFootL = new THREE.Mesh(hbFootGeo, hbShoe); hbFootL.position.set(0, -0.8, 0); bodyParts.hbLegL.add(hbFootL);
+            heldBodyGroup.add(bodyParts.hbLegL);
+
+            bodyParts.hbLegR = new THREE.Mesh(hbLegGeo, hbClothes);
+            bodyParts.hbLegR.position.set(0.12, -0.2, 0);
+            const hbFootR = new THREE.Mesh(hbFootGeo, hbShoe); hbFootR.position.set(0, -0.8, 0); bodyParts.hbLegR.add(hbFootR);
+            heldBodyGroup.add(bodyParts.hbLegR);
+
+            // Braços e Mãos
+            const hbArmGeo = new THREE.CylinderGeometry(0.045, 0.035, 0.6, 8); hbArmGeo.translate(0, -0.3, 0);
+            const hbHandGeo = new THREE.SphereGeometry(0.05, 8, 8);
+
+            bodyParts.hbArmL = new THREE.Mesh(hbArmGeo, hbSkin);
+            bodyParts.hbArmL.position.set(-0.22, 0.25, 0);
+            const hbHandL = new THREE.Mesh(hbHandGeo, hbSkin); hbHandL.position.set(0, -0.6, 0); bodyParts.hbArmL.add(hbHandL);
+            heldBodyGroup.add(bodyParts.hbArmL);
+
+            bodyParts.hbArmR = new THREE.Mesh(hbArmGeo, hbSkin);
+            bodyParts.hbArmR.position.set(0.22, 0.25, 0);
+            const hbHandR = new THREE.Mesh(hbHandGeo, hbSkin); hbHandR.position.set(0, -0.6, 0); bodyParts.hbArmR.add(hbHandR);
+            heldBodyGroup.add(bodyParts.hbArmR);
+
+            heldBodyGroup.visible = false;
+            cameraPitch.add(heldBodyGroup);
 
             // =========================================================
             // === OSSOS ESPALHADOS ===
@@ -2028,6 +2175,8 @@
         function onKeyDown(e) {
             if(moveState.dead || moveState.phase === 'escape_cutscene' || moveState.phase === 'fernando_cutscene' || moveState.phase === 'win' || moveState.interactingWithMirror) return;
             const key = e.key.toLowerCase(); if(keys.hasOwnProperty(key)) keys[key] = true;
+            if(e.code === "ArrowLeft") keys.arrowleft = true;
+            if(e.code === "ArrowRight") keys.arrowright = true;
             if(e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = true;
             if(e.code === "KeyQ") keys.q = true;
             
@@ -2069,6 +2218,13 @@
                 }
             }
 
+            if(e.code === "KeyC" && moveState.hasSpecialBody && !moveState.hidden && !moveState.readingNote) {
+                moveState.holdingSpecialBody = !moveState.holdingSpecialBody;
+                heldBodyGroup.visible = moveState.holdingSpecialBody;
+                if (!moveState.holdingSpecialBody) showMessage("Corpo solto.");
+                else showMessage("Segurando corpo pesado...");
+            }
+
             if(e.code === "Space" && moveState.phase === 'house' && !moveState.hidden && !moveState.readingNote) {
                 handleJumpAction();
             }
@@ -2078,11 +2234,15 @@
             if(e.code === "KeyV" && moveState.phase !== 'driving' && !moveState.hidden && !moveState.readingNote) {
                 moveState.thirdPerson = !moveState.thirdPerson;
                 if(moveState.thirdPerson) {
-                    camera.position.set(0, 1.5, 7); 
+                    camera.position.set(0, 1.4, 4.0); 
+                    camera.fov = 65; // Campo de visão menor na terceira pessoa
+                    camera.updateProjectionMatrix();
                     bodyParts.torso.visible = true; bodyParts.head.visible = true;
                     fpFlashlightGroup.visible = false;
                 } else {
                     camera.position.set(0, 0, 0); 
+                    camera.fov = 75; // Campo de visão padrão em primeira pessoa
+                    camera.updateProjectionMatrix();
                     bodyParts.torso.visible = false; bodyParts.head.visible = false;
                     fpFlashlightGroup.visible = moveState.flashlightOn;
                 }
@@ -2090,6 +2250,8 @@
         }
         function onKeyUp(e) { 
             const key = e.key.toLowerCase(); if(keys.hasOwnProperty(key)) keys[key] = false; 
+            if(e.code === "ArrowLeft") keys.arrowleft = false;
+            if(e.code === "ArrowRight") keys.arrowright = false;
             if(e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = false;
             if(e.code === "KeyQ") keys.q = false;
         }
@@ -2194,6 +2356,22 @@
                     startEscapeCutscene(); 
                 } 
                 else showMessage("A Saída está trancada! Precisa da Chave Azul no 2º Andar.");
+            }
+            if (target.name === "door_office" && moveState.standing && !moveState.doors.office) {
+                moveState.doors.office = true; showMessage("Escritório aberto.");
+            }
+            if (target.name === "door_laundry" && moveState.standing && !moveState.doors.laundry) {
+                moveState.doors.laundry = true; showMessage("Lavanderia aberta.");
+            }
+            if (target.name === "door_bathroom" && moveState.standing && !moveState.doors.bathroom) {
+                moveState.doors.bathroom = true; showMessage("Banheiro aberto.");
+            }
+            if (target.name === "special_body" && moveState.standing && !moveState.hasSpecialBody) {
+                moveState.hasSpecialBody = true;
+                moveState.holdingSpecialBody = true;
+                target.userData.parentGrp.visible = false; // Esconde o corpo no chão
+                heldBodyGroup.visible = true; // Mostra na mão do jogador
+                showMessage("Você coletou o Corpo Especial! Aperte 'C' para soltar/segurar.");
             }
         }
 
@@ -2335,52 +2513,36 @@
                         <button class="mt-8 px-8 py-3 bg-gray-800 text-white font-bold rounded hover:bg-gray-600" onclick="location.reload()">JOGAR NOVAMENTE</button>
                     `;
                 }, 58000);
+            }, 1000);
+        }
 
-            }, 1000); // 1 segundo após o choque
+        function checkCollisions(px, pz, radius) {
+            for (let i = 0; i < walls.length; i++) {
+                const w = walls[i];
+                const wBox = new THREE.Box3().setFromObject(w);
+                const pBox = new THREE.Box3(new THREE.Vector3(px - radius, 0.1, pz - radius), new THREE.Vector3(px + radius, 3.5, pz + radius));
+                if (wBox.intersectsBox(pBox)) return true;
+            }
+            for (const key in doorsMeshes) {
+                if (!moveState.doors[key]) {
+                    const doorGroup = doorsMeshes[key];
+                    if (!doorGroup) continue;
+                    const doorMesh = doorGroup.children[0];
+                    const dBox = new THREE.Box3().setFromObject(doorMesh);
+                    const pBox = new THREE.Box3(new THREE.Vector3(px - radius, 0.1, pz - radius), new THREE.Vector3(px + radius, 3.5, pz + radius));
+                    if (dBox.intersectsBox(pBox)) return true;
+                }
+            }
+            return false;
         }
 
         function applyColisionsLogic(px, pz, size) {
-            let py = 0;
-            if (pz > -7.4) {
-                // Exterior da casa: celeiro fica em x > 9, z em [0,20]
-                if (px > 9) {
-                    // Área do celeiro e exterior direito — sem restrição apertada
-                    px = Math.max(9, Math.min(50, px));
-                    pz = Math.min(20, Math.max(-20, pz));
-                } else if (px < -9) {
-                    // Exterior esquerdo
-                    px = Math.max(-50, Math.min(-9, px));
-                    pz = Math.min(20, Math.max(-20, pz));
-                } else {
-                    // Dentro do porão (interior da casa)
-                    px = Math.max(-9+size, Math.min(9-size, px));
-                    pz = Math.min(7-size, Math.max(-7.4, pz));
-                    if (!moveState.doors.basement && pz < -7.4 + size) pz = -7.4 + size;
-                }
-            } else if (pz > -20) { 
-                px = Math.max(-1.5+size, Math.min(1.5-size, px)); 
-            } else if (pz > -35) {
-                if (px < -5.5) { 
-                    px = Math.max(-19.5+size, px); pz = Math.max(-34.5+size, Math.min(-20.5-size, pz));
-                    if (pz > -27.5 && pz < -24.5) { if (!moveState.doors.kitchen) px = Math.min(-5.5 - size, px); } 
-                    else { px = Math.min(-5.5 - size, px); }
-                } else { 
-                    px = Math.min(5.5-size, px);
-                    if (pz > -27.5 && pz < -24.5) { if (!moveState.doors.kitchen) px = Math.max(-5.5 + size, px); }
-                    if (pz < -35 + size && (px < 2.5 || px > 5.5)) pz = -35 + size;
-                }
-            } else if (pz > -45) { 
-                px = Math.max(2.5+size, Math.min(5.5-size, px));
-                py = (( -35 - pz ) / 10) * 4; py = Math.max(0, Math.min(4, py));
-            } else if (pz > -64.5 || (!moveState.doors.exit && pz > -66)) { 
-                px = Math.max(-14.5+size, Math.min(14.5-size, px)); py = 4;
-                if (pz > -45 - size && (px < 2.5 || px > 5.5)) pz = -45 - size;
-                if (!moveState.doors.exit && pz < -64.5 + size) pz = -64.5 + size;
-            } else {
-                px = Math.max(-140+size, Math.min(140-size, px)); py = 4; pz = Math.max(-550, pz); 
-            }
+            let py = getFloorHeight(pz);
+            px = Math.max(-150, Math.min(150, px));
+            pz = Math.max(-550, Math.min(25, pz));
             return {x: px, y: py, z: pz};
         }
+            
 
         function triggerJumpScare() {
             if (moveState.phase === 'escape_cutscene' || moveState.phase === 'fernando_cutscene' || moveState.phase === 'win') return;
@@ -2564,6 +2726,7 @@
                         else if(n === "shotgun") interactText.innerText = "🔫 Pegar Espingarda";
                         else if(n === "gas_can") interactText.innerText = "🛢️ Pegar Gasolina";
                         else if(n === "car_battery") interactText.innerText = "🔋 Pegar Bateria";
+                        else if(n === "special_body") interactText.innerText = "🖐️ Pegar Corpo Pesado";
                         else interactText.innerText = "Pegar Item";
                     } else {
                         currentInteractable = null; interactPrompt.style.display = 'none'; crosshair.classList.remove('active');
@@ -2590,6 +2753,44 @@
                     interactAnimActive = false;
                     bodyParts.armR.rotation.x = 0;
                     if(fpFlashlightGroup) { fpFlashlightGroup.position.z = -0.4; fpFlashlightGroup.rotation.x = 0; }
+                }
+            }
+
+            // Animação da cabeça do corpo segurado (Física de "Boneco de Posto" - Sky Dancer)
+            if (moveState.holdingSpecialBody && heldBodyHead) {
+                if (isMoving && !moveState.dead && !moveState.hidden) {
+                    const speedMult = keys.shift ? 2.2 : 1.0; // Dash/Run aumenta o balanço
+                    const wobbleX = Math.sin(walkTime * 4.5) * 0.8 * speedMult;
+                    const wobbleZ = Math.cos(walkTime * 3.5) * 0.6 * speedMult;
+                    
+                    heldBodyHead.rotation.x = wobbleX;
+                    heldBodyHead.rotation.z = wobbleZ;
+                    
+                    // O tronco também balança como um boneco de posto
+                    heldBodyGroup.rotation.x = wobbleX * 0.4;
+                    heldBodyGroup.rotation.z = -wobbleZ * 0.3;
+                    
+                    heldBodyGroup.position.y = -0.7 + Math.sin(walkTime * 8) * 0.1 * speedMult;
+                    heldBodyGroup.position.x = 0.5 + Math.cos(walkTime * 4) * 0.05 * speedMult;
+
+                    // Animação dos membros (articulação)
+                    bodyParts.hbArmL.rotation.z = 0.3 + Math.sin(walkTime * 6) * 0.5 * speedMult;
+                    bodyParts.hbArmR.rotation.z = -0.3 + Math.sin(walkTime * 6 + 1) * 0.5 * speedMult;
+                    bodyParts.hbLegL.rotation.x = Math.sin(walkTime * 5) * 0.4 * speedMult;
+                    bodyParts.hbLegR.rotation.x = Math.sin(walkTime * 5 + 0.5) * 0.4 * speedMult;
+                } else {
+                    heldBodyHead.rotation.x += (0 - heldBodyHead.rotation.x) * 0.08;
+                    heldBodyHead.rotation.z += (0 - heldBodyHead.rotation.z) * 0.08;
+                    heldBodyGroup.rotation.x += (0 - heldBodyGroup.rotation.x) * 0.08;
+                    heldBodyGroup.rotation.z += (0 - heldBodyGroup.rotation.z) * 0.08;
+                    heldBodyGroup.position.y += (-0.7 - heldBodyGroup.position.y) * 0.08;
+                    heldBodyGroup.position.x += (0.5 - heldBodyGroup.position.x) * 0.08;
+
+                    // Reset suave dos membros
+                    bodyParts.hbArmL.rotation.z += (0.3 - bodyParts.hbArmL.rotation.z) * 0.1;
+                    bodyParts.hbArmR.rotation.z += (-0.3 - bodyParts.hbArmR.rotation.z) * 0.1;
+                    bodyParts.hbLegL.rotation.x += (0 - bodyParts.hbLegL.rotation.x) * 0.1;
+                    bodyParts.hbLegR.rotation.x += (0 - bodyParts.hbLegR.rotation.x) * 0.1;
                 }
             }
 
@@ -2629,7 +2830,15 @@
                     velocity.x += speedX * baseSpeed * delta;
                 }
 
-                playerGroup.translateX(velocity.x * delta); playerGroup.translateZ(velocity.z * delta);
+                const oldPos = playerGroup.position.clone();
+                playerGroup.translateX(velocity.x * delta); 
+                playerGroup.translateZ(velocity.z * delta);
+                
+                // Se a nova posição colidir com paredes ou portas fechadas, voltamos
+                if (checkCollisions(playerGroup.position.x, playerGroup.position.z, 0.3)) {
+                    playerGroup.position.copy(oldPos);
+                }
+
                 let newPPos = applyColisionsLogic(playerGroup.position.x, playerGroup.position.z, 0.3);
                 playerGroup.position.x = newPPos.x;
                 playerGroup.position.z = newPPos.z;
@@ -2663,10 +2872,17 @@
                     }
                 } else {
                     walkTime = 0; cameraPitch.position.y = 1.6;
-                    bodyParts.legL.rotation.x = 0; bodyParts.legR.rotation.x = 0; bodyParts.armL.rotation.x = 0;
+                    // Retorno suave para a pose relaxada em vez de estalar duro para 0
+                    bodyParts.legL.rotation.x += (0 - bodyParts.legL.rotation.x) * 0.1;
+                    bodyParts.legR.rotation.x += (0 - bodyParts.legR.rotation.x) * 0.1;
+                    
                     if (!interactAnimActive) {
-                        if (moveState.thirdPerson && moveState.flashlightOn) bodyParts.armR.rotation.x = -Math.PI / 2.5;
-                        else bodyParts.armR.rotation.x = 0;
+                        bodyParts.armL.rotation.x += (0 - bodyParts.armL.rotation.x) * 0.1;
+                        if (moveState.thirdPerson && moveState.flashlightOn) {
+                            bodyParts.armR.rotation.x += (-Math.PI / 2.5 - bodyParts.armR.rotation.x) * 0.1;
+                        } else {
+                            bodyParts.armR.rotation.x += (0 - bodyParts.armR.rotation.x) * 0.1;
+                        }
                     }
                     if (!moveState.thirdPerson && moveState.flashlightOn && !interactAnimActive && fpFlashlightGroup) {
                         fpFlashlightGroup.position.y = -0.3; fpFlashlightGroup.position.x = 0.3;
@@ -2682,11 +2898,11 @@
                 if(keys.s || (isMobile && mobileState.joystick.active && mobileState.joystick.y > 0.2)) { 
                     carSpeed = -15 * delta * (isMobile ? mobileState.joystick.y : 1); isMoving = true; 
                 }
-                if(keys.a || keys.d || (isMobile && mobileState.joystick.active && Math.abs(mobileState.joystick.x) > 0.2)) isMoving = true;                
-                if(keys.a || (isMobile && mobileState.joystick.active && mobileState.joystick.x < -0.2)) {
+                if(keys.a || keys.d || keys.arrowleft || keys.arrowright || (isMobile && mobileState.joystick.active && Math.abs(mobileState.joystick.x) > 0.2)) isMoving = true;                
+                if(keys.arrowleft || (isMobile && mobileState.joystick.active && mobileState.joystick.x < -0.2)) {
                     carGroup.rotation.y += 1.5 * delta * (isMobile ? -mobileState.joystick.x : 1);
                 }
-                if(keys.d || (isMobile && mobileState.joystick.active && mobileState.joystick.x > 0.2)) {
+                if(keys.arrowright || (isMobile && mobileState.joystick.active && mobileState.joystick.x > 0.2)) {
                     carGroup.rotation.y -= 1.5 * delta * (isMobile ? mobileState.joystick.x : 1);
                 }
                 
@@ -2730,6 +2946,9 @@
             if (moveState.doors.basement && doorsMeshes.basement.rotation.y < Math.PI / 2) doorsMeshes.basement.rotation.y += 0.04;
             if (moveState.doors.kitchen && doorsMeshes.kitchen.rotation.y > -Math.PI / 2) doorsMeshes.kitchen.rotation.y -= 0.04;
             if (moveState.doors.exit && doorsMeshes.exit.rotation.y < Math.PI / 2) doorsMeshes.exit.rotation.y += 0.04;
+            if (moveState.doors.office && doorsMeshes.office.rotation.y > -Math.PI / 2) doorsMeshes.office.rotation.y -= 0.04;
+            if (moveState.doors.laundry && doorsMeshes.laundry.rotation.y < Math.PI / 2) doorsMeshes.laundry.rotation.y += 0.04;
+            if (moveState.doors.bathroom && doorsMeshes.bathroom.rotation.y < Math.PI / 2) doorsMeshes.bathroom.rotation.y += 0.04;
 
             if (moveState.doors.basement && !moveState.dead && moveState.phase !== 'escape_cutscene' && moveState.phase !== 'fernando_cutscene' && moveState.phase !== 'win') {
                 updateYasminAI(delta);
@@ -2750,14 +2969,17 @@
                 if (moveState.jumpscarePhase === 1) {
                     voidLight.intensity = Math.random() > 0.4 ? 12.0 : 0.0;
                     yasmin.position.x = (Math.random() - 0.5) * 0.05; 
-                    cameraPitch.position.x = (Math.random() - 0.5) * 0.02;
+                    cameraPitch.position.x = (Math.random() - 0.5) * 0.05; // Shake maior
+                    cameraPitch.rotation.z = (Math.random() - 0.5) * 0.05; 
                 } else if (moveState.jumpscarePhase === 2) {
                     if(yasmin.scale.x < 1.6) yasmin.scale.addScalar(0.06); 
                     yasmin.position.x = (Math.random() - 0.5) * 0.2; 
                     yasmin.position.y = 500 + (Math.random() - 0.5) * 0.2;
                     yasmin.position.z += 0.06; if(yasmin.position.z > -0.25) yasmin.position.z = -0.25; 
-                    cameraPitch.position.x = (Math.random() - 0.5) * 0.2; 
-                    cameraPitch.position.y = 1.5 + (Math.random() - 0.5) * 0.2;
+                    // Shake extremo na câmera
+                    cameraPitch.position.x = (Math.random() - 0.5) * 0.4; 
+                    cameraPitch.position.y = 1.5 + (Math.random() - 0.5) * 0.4;
+                    cameraPitch.rotation.z = (Math.random() - 0.5) * 0.2; 
                 }
             }
 
@@ -2821,7 +3043,8 @@
                             camera.getWorldPosition(camPos);
                             const dist = camPos.distanceTo(monsterCenter);
 
-                            const rawSize = Math.max(60, 1800 / Math.max(dist, 0.5));
+                            // Tamanho reduzido pela metade a pedido do usuário
+                            const rawSize = Math.max(40, 900 / Math.max(dist, 0.5));
                             const imgSize = rawSize * yasmin.scale.x;
 
                             yasminImg.style.display = 'block';
